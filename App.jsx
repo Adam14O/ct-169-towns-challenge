@@ -225,8 +225,8 @@ export default function CTGame() {
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="mx-auto max-w-6xl grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-5">
+      <div className="mx-auto max-w-7xl grid gap-4 md:gap-5 md:grid-cols-[1.35fr_0.65fr] items-start">
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -259,7 +259,7 @@ export default function CTGame() {
                   {isFullscreen ? <><Minimize className="mr-2 h-4 w-4" /> Exit Full Screen</> : <><Maximize className="mr-2 h-4 w-4" /> Full Screen</>}
                 </Button>
               </div>
-              <svg viewBox="0 0 100 100" className={`w-full cursor-crosshair rounded-xl touch-none ${isFullscreen ? 'h-[calc(100vh-5.5rem)] max-h-none aspect-auto bg-white' : 'h-auto max-h-[58vh] sm:max-h-[62vh] md:max-h-[68vh] lg:max-h-[72vh] aspect-[1.7/1] md:aspect-[1.9/1]'}`} onClick={handleMapClick} preserveAspectRatio="xMidYMid meet">
+              <svg viewBox="0 0 100 100" className={`w-full cursor-crosshair rounded-xl touch-none ${isFullscreen ? 'h-[calc(100vh-5.5rem)] max-h-none aspect-auto bg-white' : 'h-auto max-h-[42vh] sm:max-h-[48vh] md:max-h-[54vh] lg:max-h-[58vh] aspect-[1.7/1] md:aspect-[1.9/1]'}`} onClick={handleMapClick} preserveAspectRatio="xMidYMid meet">
                 {Array.from({ length: 11 }).map((_, i) => (
                   <g key={i}>
                     <line x1={i * 10} y1={0} x2={i * 10} y2={100} stroke="#e2e8f0" strokeWidth="0.25" />
@@ -325,13 +325,13 @@ export default function CTGame() {
                     </>
                   )}
                 </div>
-                <Button onClick={nextRound} disabled={!revealed} className="rounded-xl">{round === roundsToPlay - 1 ? "Finish" : "Next Round"}</Button>
+                <Button onClick={nextRound} disabled={!revealed} className="rounded-xl">{round === roundsToPlay - 1 ? "Finish" : "Next Town"}</Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4 md:gap-5 md:sticky md:top-4 self-start md:max-h-[calc(100vh-2rem)] md:overflow-auto">
           <Card className="rounded-2xl shadow-sm">
             <CardHeader><CardTitle className="text-lg">Game Info</CardTitle></CardHeader>
             <CardContent className="text-sm text-slate-700 space-y-2">
