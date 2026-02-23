@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "./card.jsx";
+import { Button } from "./button.jsx";
+import { Progress } from "./progress.jsx";
+import { Badge } from "./badge.jsx";
 import { RotateCcw, Play, MapPin, Target, CheckCircle2, AlertCircle } from "lucide-react";
 
 // Final ready to play version using live CTDOT municipal polygons (169 towns)
