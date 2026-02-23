@@ -1,0 +1,9 @@
+:root {
+  font-family: Inter, system-ui, Arial, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button { font: inherit; cursor: pointer; }
+/* This project will still work without Tailwind. Tailwind-like class names in the component are harmless. */
