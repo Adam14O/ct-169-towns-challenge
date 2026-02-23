@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./card.jsx";
-import { Button } from "./button.jsx";
-import { Progress } from "./progress.jsx";
-import { Badge } from "./badge.jsx";
-import { RotateCcw, Play, MapPin, Target, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { RotateCcw, Play, MapPin, Target, CheckCircle2, AlertCircle, Maximize, Minimize } from "lucide-react";
 
 // Final ready to play version using live CTDOT municipal polygons (169 towns)
 // ArcGIS layer field name for town label is "Municipality"
@@ -115,6 +115,7 @@ function findClickedTown(x, y, towns) {
 }
 
 export default function CTGame() {
+  const mapWrapRef = useRef(null);
   const [mapState, setMapState] = useState({ loading: true, error: "", towns: [] });
   const [started, setStarted] = useState(false);
   const [round, setRound] = useState(0);
@@ -124,8 +125,28 @@ export default function CTGame() {
   const [roundScore, setRoundScore] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [history, setHistory] = useState([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const roundsToPlay = 10;
+
+  useEffect(() => {
+    const onFsChange = () => {
+      const fsEl = document.fullscreenElement;
+      setIsFullscreen(!!fsEl && fsEl === mapWrapRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await mapWrapRef.current?.requestFullscreen?.();
+      } else if (document.fullscreenElement === mapWrapRef.current) {
+        await document.exitFullscreen?.();
+      }
+    } catch (_) {}
+  };
 
   useEffect(() => {
     let alive = true;
@@ -232,8 +253,13 @@ export default function CTGame() {
 
             <Progress value={progressPct} className="mb-4" />
 
-            <div className="relative rounded-2xl border bg-white p-2">
-              <svg viewBox="0 0 100 100" className="w-full aspect-[1.55/1] cursor-crosshair rounded-xl" onClick={handleMapClick}>
+            <div ref={mapWrapRef} className={`relative rounded-2xl border bg-white p-2 overflow-hidden ${isFullscreen ? 'h-screen w-screen rounded-none border-0 p-3 bg-slate-950' : ''}`}>
+              <div className="mb-2 flex items-center justify-end">
+                <Button type="button" variant="outline" size="sm" onClick={toggleFullscreen} className="rounded-lg bg-white/90">
+                  {isFullscreen ? <><Minimize className="mr-2 h-4 w-4" /> Exit Full Screen</> : <><Maximize className="mr-2 h-4 w-4" /> Full Screen</>}
+                </Button>
+              </div>
+              <svg viewBox="0 0 100 100" className={`w-full cursor-crosshair rounded-xl touch-none ${isFullscreen ? 'h-[calc(100vh-5.5rem)] max-h-none aspect-auto bg-white' : 'h-auto max-h-[58vh] sm:max-h-[62vh] md:max-h-[68vh] lg:max-h-[72vh] aspect-[1.7/1] md:aspect-[1.9/1]'}`} onClick={handleMapClick} preserveAspectRatio="xMidYMid meet">
                 {Array.from({ length: 11 }).map((_, i) => (
                   <g key={i}>
                     <line x1={i * 10} y1={0} x2={i * 10} y2={100} stroke="#e2e8f0" strokeWidth="0.25" />
@@ -275,7 +301,7 @@ export default function CTGame() {
                   </g>
                 )}
               </svg>
-              <div className="pointer-events-none absolute bottom-3 right-4 text-[11px] md:text-xs text-slate-500 bg-white/80 px-2 py-1 rounded-md border">
+              <div className={`pointer-events-none absolute text-[11px] md:text-xs px-2 py-1 rounded-md border ${isFullscreen ? 'bottom-4 right-4 text-slate-200 bg-slate-900/70 border-slate-700' : 'bottom-3 right-4 text-slate-500 bg-white/80'}`}>
                 Game created by: Adam Osmond
               </div>
             </div>
