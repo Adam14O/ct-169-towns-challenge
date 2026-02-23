@@ -392,8 +392,8 @@ export default function CTGame() {
             <div style={panelStyle}>
               <div style={panelHeaderStyle}>Game Info</div>
               <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.8 }}>
-                <div>Rounds per game: {roundsToPlay}</div>
-                <div>Scoring: 0–100 per round</div>
+                <div>Towns per game: {roundsToPlay}</div>
+                <div>Scoring is between 0 and 100 per town, based on how close you click to the target location, with 100 points awarded for an exact match.</div>
                 <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>
                   {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
                 </div>
