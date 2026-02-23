@@ -31,18 +31,27 @@ const TOWN_NAMES = [
 ];
 
 function normTownName(name = "") {
-  return String(name).toLowerCase().replace(/\b(town|city|borough|municipality)\b/g, "").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  return String(name)
+    .toLowerCase()
+    .replace(/\b(town|city|borough|municipality)\b/g, "")
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
+
 function pointInPoly(x, y, poly) {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const xi = poly[i][0], yi = poly[i][1];
     const xj = poly[j][0], yj = poly[j][1];
-    const hit = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi;
+    const hit =
+      (yi > y) !== (yj > y) &&
+      x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi;
     if (hit) inside = !inside;
   }
   return inside;
 }
+
 function pointInRings(x, y, rings) {
   if (!rings?.length) return false;
   let inOuter = false;
@@ -53,16 +62,19 @@ function pointInRings(x, y, rings) {
   }
   return inOuter;
 }
+
 function distance(a, b) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
+
 function scoreFromDistance(d) {
   const maxD = 70;
   const clamped = Math.min(maxD, d);
   return Math.round(100 * Math.pow(1 - clamped / maxD, 1.6));
 }
+
 function rating(total) {
   if (total >= 900) return "Connecticut Legend";
   if (total >= 750) return "Town Master";
@@ -70,22 +82,37 @@ function rating(total) {
   if (total >= 450) return "Road Tripper";
   return "Getting Started";
 }
+
 function flattenCoords(g) {
   if (!g?.coordinates) return [];
   if (g.type === "Polygon") return [g.coordinates];
   if (g.type === "MultiPolygon") return g.coordinates;
   return [];
 }
+
 function bboxFromFeatures(features) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  features.forEach((f) => flattenCoords(f.geometry).forEach((poly) => poly.forEach((ring) => ring.forEach(([x, y]) => {
-    minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-  }))));
+  features.forEach((f) =>
+    flattenCoords(f.geometry).forEach((poly) =>
+      poly.forEach((ring) =>
+        ring.forEach(([x, y]) => {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        })
+      )
+    )
+  );
   return { minX, minY, maxX, maxY };
 }
+
 function normalizeFeaturesToSvg(geojson) {
-  const features = (geojson?.features || []).filter((f) => ["Polygon", "MultiPolygon"].includes(f?.geometry?.type));
+  const features = (geojson?.features || []).filter((f) =>
+    ["Polygon", "MultiPolygon"].includes(f?.geometry?.type)
+  );
   if (!features.length) return [];
+
   const bb = bboxFromFeatures(features);
   const w = (bb.maxX - bb.minX) || 1;
   const h = (bb.maxY - bb.minY) || 1;
@@ -96,15 +123,48 @@ function normalizeFeaturesToSvg(geojson) {
   const project = ([x, y]) => [xOff + (x - bb.minX) * s, yOff + (bb.maxY - y) * s];
 
   return features.map((f, idx) => {
-    const rawName = f?.properties?.Municipality || f?.properties?.MUNICIPALITY || f?.properties?.NAME || f?.properties?.name || "";
-    const polygons = flattenCoords(f.geometry).map((poly) => poly.map((ring) => ring.map(project)));
+    const rawName =
+      f?.properties?.Municipality ||
+      f?.properties?.MUNICIPALITY ||
+      f?.properties?.NAME ||
+      f?.properties?.name ||
+      "";
+
+    const polygons = flattenCoords(f.geometry).map((poly) =>
+      poly.map((ring) => ring.map(project))
+    );
+
     let sx = 0, sy = 0, n = 0;
-    polygons.forEach((poly) => (poly[0] || []).forEach(([x, y]) => { sx += x; sy += y; n += 1; }));
+    polygons.forEach((poly) =>
+      (poly[0] || []).forEach(([x, y]) => {
+        sx += x;
+        sy += y;
+        n += 1;
+      })
+    );
+
     const centroid = n ? { x: sx / n, y: sy / n } : { x: 50, y: 50 };
-    const paths = polygons.map((poly) => poly.map((ring) => `M ${ring.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join(" L ")} Z`).join(" "));
-    return { id: idx + 1, name: String(rawName), key: normTownName(rawName), centroid, polygons, paths };
+
+    const paths = polygons.map((poly) =>
+      poly
+        .map(
+          (ring) =>
+            `M ${ring.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join(" L ")} Z`
+        )
+        .join(" ")
+    );
+
+    return {
+      id: idx + 1,
+      name: String(rawName),
+      key: normTownName(rawName),
+      centroid,
+      polygons,
+      paths
+    };
   });
 }
+
 function findClickedTown(x, y, towns) {
   for (const t of towns) {
     for (const poly of t.polygons || []) {
@@ -125,12 +185,9 @@ export default function CTGame() {
   const [roundScore, setRoundScore] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [history, setHistory] = useState([]);
-  // Full screen removed per request
-  const [isFullscreen] = useState(false);
 
   const roundsToPlay = 10;
 
-  
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -147,7 +204,9 @@ export default function CTGame() {
         setMapState({ loading: false, error: `Map load failed: ${e.message}`, towns: [] });
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const towns = useMemo(() => {
@@ -158,7 +217,8 @@ export default function CTGame() {
     }).filter(Boolean);
   }, [mapState.towns]);
 
-  const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
+  const currentTown =
+    started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
   const gameOver = started && round >= roundsToPlay;
 
   const startGame = () => {
@@ -180,6 +240,7 @@ export default function CTGame() {
 
   const handleMapClick = (e) => {
     if (!currentTown || revealed || gameOver) return;
+
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -190,11 +251,24 @@ export default function CTGame() {
     const d = distance(guessedPoint, currentTown.centroid);
     const s = scoreFromDistance(d);
 
-    setGuess({ x, y, clickedTownName: clickedTown?.name || null, scorePoint: guessedPoint });
+    setGuess({
+      x,
+      y,
+      clickedTownName: clickedTown?.name || null,
+      scorePoint: guessedPoint
+    });
     setRoundScore(s);
     setRevealed(true);
     setTotalScore((prev) => prev + s);
-    setHistory((prev) => [...prev, { town: currentTown.name, guessed: clickedTown?.name || "(outside town)", score: s, dist: d }]);
+    setHistory((prev) => [
+      ...prev,
+      {
+        town: currentTown.name,
+        guessed: clickedTown?.name || "(outside town)",
+        score: s,
+        dist: d
+      }
+    ]);
   };
 
   const nextRound = () => {
@@ -208,36 +282,82 @@ export default function CTGame() {
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 md:p-5">
-      <div className="mx-auto max-w-[1500px] grid gap-4 md:gap-5 lg:grid-cols-[1.5fr_0.5fr] items-start">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-4">
+      <div className="mx-auto max-w-[1500px] grid gap-4 lg:grid-cols-[1.55fr_0.45fr] items-start">
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="text-xl md:text-2xl flex items-center gap-2"><MapPin className="h-5 w-5 md:h-6 md:w-6" /> CT 169 Towns Challenge</CardTitle>
-              <Button onClick={startGame} className="rounded-xl" disabled={mapState.loading || towns.length < 169}>
-                {started ? <><RotateCcw className="mr-2 h-4 w-4" /> Restart</> : <><Play className="mr-2 h-4 w-4" /> Start Game</>}
+              <CardTitle className="text-xl md:text-2xl flex items-center gap-2">
+                <MapPin className="h-5 w-5 md:h-6 md:w-6" />
+                CT 169 Towns Challenge
+              </CardTitle>
+              <Button
+                onClick={startGame}
+                className="rounded-xl"
+                disabled={mapState.loading || towns.length < 169}
+              >
+                {started ? (
+                  <>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Restart
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" /> Start Game
+                  </>
+                )}
               </Button>
             </div>
             <p className="text-sm text-slate-600">Game created by: Adam Osmond</p>
           </CardHeader>
+
           <CardContent>
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="rounded-lg px-3 py-1">Rounds: {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}</Badge>
-              <Badge variant="secondary" className="rounded-lg px-3 py-1">Score: {totalScore}</Badge>
-              <Badge className="rounded-lg px-3 py-1 text-xs">{towns.length ? `Loaded ${towns.length} towns` : "Loading map"}</Badge>
-              {currentTown && !gameOver && <Badge className="rounded-lg px-3 py-1 text-base">Find: {currentTown.name}</Badge>}
+              <Badge variant="secondary" className="rounded-lg px-3 py-1">
+                Rounds: {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
+              </Badge>
+              <Badge variant="secondary" className="rounded-lg px-3 py-1">
+                Score: {totalScore}
+              </Badge>
+              <Badge className="rounded-lg px-3 py-1 text-xs">
+                {towns.length ? `Loaded ${towns.length} towns` : "Loading map"}
+              </Badge>
+              {currentTown && !gameOver && (
+                <Badge className="rounded-lg px-3 py-1 text-base">
+                  Find: {currentTown.name}
+                </Badge>
+              )}
             </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-              {mapState.loading && <span className="inline-flex items-center gap-1 text-slate-600"><span className="animate-pulse">●</span> Loading real CT map...</span>}
-              {!mapState.loading && !mapState.error && <span className="inline-flex items-center gap-1 text-green-700"><CheckCircle2 className="h-4 w-4" /> Ready to play</span>}
-              {mapState.error && <span className="inline-flex items-center gap-1 text-amber-700"><AlertCircle className="h-4 w-4" /> {mapState.error}</span>}
+              {mapState.loading && (
+                <span className="inline-flex items-center gap-1 text-slate-600">
+                  <span className="animate-pulse">●</span> Loading real CT map...
+                </span>
+              )}
+              {!mapState.loading && !mapState.error && (
+                <span className="inline-flex items-center gap-1 text-green-700">
+                  <CheckCircle2 className="h-4 w-4" /> Ready to play
+                </span>
+              )}
+              {mapState.error && (
+                <span className="inline-flex items-center gap-1 text-amber-700">
+                  <AlertCircle className="h-4 w-4" /> {mapState.error}
+                </span>
+              )}
             </div>
 
             <Progress value={progressPct} className="mb-4" />
 
-            <div ref={mapWrapRef} className="relative rounded-2xl border bg-white p-2 overflow-hidden">
-              <svg viewBox="0 0 100 100" className="w-full cursor-crosshair rounded-xl touch-none h-auto max-h-[34vh] sm:max-h-[38vh] md:max-h-[42vh] lg:max-h-[46vh] xl:max-h-[50vh] aspect-[2.1/1] bg-white" onClick={handleMapClick} preserveAspectRatio="xMidYMid meet">
+            <div
+              ref={mapWrapRef}
+              className="relative rounded-2xl border bg-white p-2 overflow-hidden max-h-[52vh]"
+            >
+              <svg
+                viewBox="0 0 100 100"
+                className="w-full cursor-crosshair rounded-xl touch-none h-auto max-h-[24vh] sm:max-h-[28vh] md:max-h-[32vh] lg:max-h-[36vh] xl:max-h-[40vh] aspect-[2.3/1] bg-white"
+                onClick={handleMapClick}
+                preserveAspectRatio="xMidYMid meet"
+              >
                 {Array.from({ length: 11 }).map((_, i) => (
                   <g key={i}>
                     <line x1={i * 10} y1={0} x2={i * 10} y2={100} stroke="#e2e8f0" strokeWidth="0.25" />
@@ -249,7 +369,11 @@ export default function CTGame() {
                   <g key={t.key}>
                     {t.paths.map((d, i) => {
                       const isCorrect = revealed && currentTown && t.key === currentTown.key;
-                      const isClicked = revealed && guess?.clickedTownName && normTownName(guess.clickedTownName) === t.key;
+                      const isClicked =
+                        revealed &&
+                        guess?.clickedTownName &&
+                        normTownName(guess.clickedTownName) === t.key;
+
                       return (
                         <path
                           key={i}
@@ -267,18 +391,43 @@ export default function CTGame() {
                 {guess && (
                   <g>
                     <circle cx={guess.x} cy={guess.y} r={1.4} fill="#ef4444" />
-                    <circle cx={guess.x} cy={guess.y} r={3} fill="none" stroke="#ef4444" strokeWidth="0.5" opacity={0.7} />
+                    <circle
+                      cx={guess.x}
+                      cy={guess.y}
+                      r={3}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="0.5"
+                      opacity={0.7}
+                    />
                   </g>
                 )}
 
                 {revealed && currentTown && guess && (
                   <g>
-                    <line x1={guess.scorePoint.x} y1={guess.scorePoint.y} x2={currentTown.centroid.x} y2={currentTown.centroid.y} stroke="#f59e0b" strokeWidth="0.6" strokeDasharray="1.2 1.2" />
+                    <line
+                      x1={guess.scorePoint.x}
+                      y1={guess.scorePoint.y}
+                      x2={currentTown.centroid.x}
+                      y2={currentTown.centroid.y}
+                      stroke="#f59e0b"
+                      strokeWidth="0.6"
+                      strokeDasharray="1.2 1.2"
+                    />
                     <circle cx={currentTown.centroid.x} cy={currentTown.centroid.y} r={1.6} fill="#22c55e" />
-                    <circle cx={currentTown.centroid.x} cy={currentTown.centroid.y} r={3.2} fill="none" stroke="#22c55e" strokeWidth="0.5" opacity={0.7} />
+                    <circle
+                      cx={currentTown.centroid.x}
+                      cy={currentTown.centroid.y}
+                      r={3.2}
+                      fill="none"
+                      stroke="#22c55e"
+                      strokeWidth="0.5"
+                      opacity={0.7}
+                    />
                   </g>
                 )}
               </svg>
+
               <div className="pointer-events-none absolute bottom-3 right-4 text-[11px] md:text-xs px-2 py-1 rounded-md border text-slate-500 bg-white/80">
                 Game created by: Adam Osmond
               </div>
@@ -286,7 +435,11 @@ export default function CTGame() {
 
             {!started && (
               <div className="mt-4 rounded-xl border bg-slate-100 p-4 text-sm text-slate-700">
-                {mapState.loading ? "Map is loading..." : mapState.error ? "Map failed to load. Try refreshing." : "Press Start Game to begin. The actual CT town map is loaded and ready."}
+                {mapState.loading
+                  ? "Map is loading..."
+                  : mapState.error
+                  ? "Map failed to load. Try refreshing."
+                  : "Press Start Game to begin. The actual CT town map is loaded and ready."}
               </div>
             )}
 
@@ -294,24 +447,35 @@ export default function CTGame() {
               <div className="mt-4 rounded-xl border bg-slate-100 p-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-slate-700">
                   {!revealed ? (
-                    <>Round {round + 1}: Click the map for <b>{currentTown?.name}</b>.</>
+                    <>
+                      Round {round + 1}: Click the map for <b>{currentTown?.name}</b>.
+                    </>
                   ) : (
                     <>
-                      <span className="inline-flex items-center gap-1 mr-3"><Target className="h-4 w-4" /> Round score: <b>{roundScore}</b></span>
+                      <span className="inline-flex items-center gap-1 mr-3">
+                        <Target className="h-4 w-4" /> Round score: <b>{roundScore}</b>
+                      </span>
                       Distance: <b>{history[history.length - 1]?.dist?.toFixed(1)}</b>
-                      <span className="ml-3">You clicked: <b>{history[history.length - 1]?.guessed}</b></span>
+                      <span className="ml-3">
+                        You clicked: <b>{history[history.length - 1]?.guessed}</b>
+                      </span>
                     </>
                   )}
                 </div>
-                <Button onClick={nextRound} disabled={!revealed} className="rounded-xl">{round === roundsToPlay - 1 ? "Finish" : "Next Town"}</Button>
+
+                <Button onClick={nextRound} disabled={!revealed} className="rounded-xl">
+                  {round === roundsToPlay - 1 ? "Finish" : "Next Town"}
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:gap-5 lg:sticky lg:top-4 self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
+        <div className="grid gap-4 lg:sticky lg:top-4 self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
           <Card className="rounded-2xl shadow-sm">
-            <CardHeader><CardTitle className="text-lg">Game Info</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Game Info</CardTitle>
+            </CardHeader>
             <CardContent className="text-sm text-slate-700 space-y-2">
               <p><b>Map:</b> Live CTDOT municipalities layer</p>
               <p><b>Town pool:</b> All 169 Connecticut towns</p>
@@ -321,12 +485,22 @@ export default function CTGame() {
           </Card>
 
           <Card className="rounded-2xl shadow-sm">
-            <CardHeader><CardTitle className="text-lg">Round History</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Round History</CardTitle>
+            </CardHeader>
             <CardContent>
-              {history.length === 0 ? <p className="text-sm text-slate-500">No rounds played yet.</p> : (
+              {history.length === 0 ? (
+                <p className="text-sm text-slate-500">No rounds played yet.</p>
+              ) : (
                 <div className="max-h-72 overflow-auto rounded-xl border">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-slate-100"><tr><th className="px-3 py-2 text-left">Town</th><th className="px-3 py-2 text-left">You clicked</th><th className="px-3 py-2 text-right">Score</th></tr></thead>
+                    <thead className="sticky top-0 bg-slate-100">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Town</th>
+                        <th className="px-3 py-2 text-left">You clicked</th>
+                        <th className="px-3 py-2 text-right">Score</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {history.map((h, i) => (
                         <tr key={`${h.town}-${i}`} className="border-t">
@@ -344,11 +518,17 @@ export default function CTGame() {
 
           {gameOver && (
             <Card className="rounded-2xl shadow-sm border-2">
-              <CardHeader><CardTitle className="text-lg">Final Result</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-lg">Final Result</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-2">
-                <div className="text-3xl font-bold">{totalScore} / {roundsToPlay * 100}</div>
+                <div className="text-3xl font-bold">
+                  {totalScore} / {roundsToPlay * 100}
+                </div>
                 <div className="text-slate-700">{rating(totalScore)}</div>
-                <div className="text-sm text-slate-600">Try again for a new random set of towns.</div>
+                <div className="text-sm text-slate-600">
+                  Try again for a new random set of towns.
+                </div>
               </CardContent>
             </Card>
           )}
