@@ -142,6 +142,14 @@ function findClickedTown(x, y, towns) {
 }
 
 export default function CTGame() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [mapState, setMapState] = useState({ loading: true, error: "", towns: [] });
   const [started, setStarted] = useState(false);
   const [round, setRound] = useState(0);
@@ -247,10 +255,10 @@ export default function CTGame() {
         </div>
 
         {/* ── BODY: map + sidebar ── */}
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, alignItems: "flex-start" }}>
 
           {/* LEFT: map column */}
-          <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          <div style={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
 
             {/* Prompt bar — ABOVE the map */}
             <div style={{
@@ -364,40 +372,44 @@ export default function CTGame() {
           </div>
 
           {/* RIGHT: sidebar */}
-          <div style={{ width: 230, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ width: isMobile ? "100%" : 230, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
 
-            {/* Score */}
-            <div style={panelStyle}>
-              <div style={panelHeaderStyle}>Score</div>
-              <div style={{ padding: "10px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>Round</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1e3a5f" }}>
-                    {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0} / {roundsToPlay}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>Total Score</span>
-                  <span style={{ fontSize: 26, fontWeight: 800, color: "#1e3a5f", lineHeight: 1 }}>{totalScore}</span>
-                </div>
-                {/* mini progress */}
-                <div style={{ height: 5, background: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "#2563eb", transition: "width 0.4s" }} />
-                </div>
-                <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", marginTop: 2 }}>max {roundsToPlay * 100}</div>
-              </div>
-            </div>
+            {/* Score + Game Info: side-by-side on mobile, stacked on desktop */}
+            <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: 10 }}>
 
-            {/* Game Info */}
-            <div style={panelStyle}>
-              <div style={panelHeaderStyle}>Game Info</div>
-              <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.8 }}>
-                <div>Towns per game: {roundsToPlay}</div>
-                <div>Scoring is between 0 and 100 per town, based on how close you click to the target location, with 100 points awarded for an exact match.</div>
-                <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>
-                  {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
+              {/* Score */}
+              <div style={{ ...panelStyle, flex: isMobile ? "0 0 auto" : undefined, width: isMobile ? "45%" : undefined }}>
+                <div style={panelHeaderStyle}>Score</div>
+                <div style={{ padding: "10px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Round</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1e3a5f" }}>
+                      {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0} / {roundsToPlay}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Total Score</span>
+                    <span style={{ fontSize: 26, fontWeight: 800, color: "#1e3a5f", lineHeight: 1 }}>{totalScore}</span>
+                  </div>
+                  <div style={{ height: 5, background: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "#2563eb", transition: "width 0.4s" }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", marginTop: 2 }}>max {roundsToPlay * 100}</div>
                 </div>
               </div>
+
+              {/* Game Info */}
+              <div style={{ ...panelStyle, flex: isMobile ? "1 1 0" : undefined }}>
+                <div style={panelHeaderStyle}>Game Info</div>
+                <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.8 }}>
+                  <div>Towns per game: {roundsToPlay}</div>
+                  <div>Scoring is between 0 and 100 per town, based on how close you click to the target location, with 100 points awarded for an exact match.</div>
+                  <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4 }}>
+                    {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             {/* Final Result */}
