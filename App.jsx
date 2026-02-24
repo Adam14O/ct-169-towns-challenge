@@ -458,6 +458,27 @@ export default function CTGame() {
           )}
         </div>
 
+        {/* How to Play — only before game starts on mobile */}
+        {!started && (
+          <div style={{
+            margin: "6px 12px 10px",
+            background: "#fff", borderRadius: 10,
+            border: "1px solid #dce8f5", overflow: "hidden"
+          }}>
+            <div style={{
+              padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
+              fontSize: 9, fontWeight: 700, color: "#5a7a9e",
+              textTransform: "uppercase", letterSpacing: "0.1em"
+            }}>How to Play</div>
+            <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+              A Connecticut town name appears at the top. Tap where you think it is on the map. Score 0–100 per town based on how close you are — 100 for a direct hit!
+              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8" }}>
+                {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Round History — compact table */}
         {history.length > 0 && (
           <div style={{
