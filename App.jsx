@@ -311,7 +311,7 @@ export default function CTGame() {
     return (
       <div style={{
         minHeight: "100vh",
-        background: "linear-gradient(160deg, #0f1e3c 0%, #162848 50%, #1a3258 100%)",
+        background: "linear-gradient(160deg, #0e3460 0%, #0f4080 50%, #1050a0 100%)",
         fontFamily: "'DM Sans', system-ui, sans-serif",
         padding: "0",
         boxSizing: "border-box",
@@ -508,9 +508,9 @@ export default function CTGame() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(160deg, #0f1e3c 0%, #162848 60%, #1a3258 100%)",
+      background: "linear-gradient(160deg, #0e3460 0%, #0f4080 40%, #1050a0 80%, #0d3d7a 100%)",
       fontFamily: "'DM Sans', system-ui, sans-serif",
-      padding: "20px 24px 32px",
+      padding: "16px 24px 24px",
       boxSizing: "border-box",
     }}>
       <style>{`
@@ -528,7 +528,7 @@ export default function CTGame() {
         {/* ── Desktop Header ── */}
         <div style={{
           display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-          marginBottom: 20, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16
+          marginBottom: 14, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 12
         }}>
           <div>
             <h1 style={{
@@ -651,99 +651,100 @@ export default function CTGame() {
             </div>
           </div>
 
-          {/* RIGHT: Sidebar */}
-          <div style={{ width: 248, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* RIGHT: Sidebar — compact, fits entire game in one viewport */}
+          <div style={{ width: 268, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
 
-            {/* Score Card */}
-            <div style={dPanel}>
-              <div style={dPanelHeader}>Score</div>
-              <div style={{ padding: "14px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
-                  </span>
-                  <span style={{
-                    fontSize: 38, fontWeight: 800, color: "#fff", lineHeight: 1,
-                    fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
-                  }}
-                    className={scoreAnim ? "score-pop" : ""}
-                  >{totalScore}</span>
-                </div>
-                {/* Score bar */}
-                <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%",
-                    width: `${(totalScore / (roundsToPlay * 100)) * 100}%`,
-                    background: "linear-gradient(90deg, #3b82f6, #818cf8)",
-                    borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)"
-                  }} />
-                </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", textAlign: "right", marginTop: 3 }}>max {roundsToPlay * 100}</div>
-              </div>
-            </div>
-
-            {/* Game Info */}
-            <div style={dPanel}>
-              <div style={dPanelHeader}>How to Play</div>
-              <div style={{ padding: "12px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.7 }}>
-                A Connecticut town name is shown above the map. Click where you think it is. Score 0–100 based on proximity — 100 for a direct hit.
-                <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
-                  {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
+            {/* Score + Final Result row — side by side when game over, or just score */}
+            {!gameOver ? (
+              /* Score Card (active game) */
+              <div style={dPanel}>
+                <div style={dPanelHeader}>Score</div>
+                <div style={{ padding: "10px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
+                    </span>
+                    <span style={{
+                      fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1,
+                      fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
+                    }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+                  </div>
+                  <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "linear-gradient(90deg, #38bdf8, #818cf8)", borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", textAlign: "right", marginTop: 2 }}>max {roundsToPlay * 100}</div>
                 </div>
               </div>
-            </div>
-
-            {/* Final Result */}
-            {gameOver && (
+            ) : (
+              /* Final Result (game over) — compact horizontal card */
               <div style={{
-                ...dPanel,
-                border: "1px solid rgba(99,102,241,0.4)",
-                background: "rgba(99,102,241,0.08)",
-                animation: "fadeSlideUp 0.4s ease both"
+                ...dPanel, border: "1px solid rgba(99,102,241,0.45)",
+                background: "rgba(30,40,100,0.55)", animation: "fadeSlideUp 0.4s ease both"
               }}>
-                <div style={{ ...dPanelHeader, background: "rgba(99,102,241,0.2)", borderBottom: "1px solid rgba(99,102,241,0.2)" }}>Final Result</div>
-                <div style={{ padding: "16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 52, fontWeight: 900, color: "#fff", lineHeight: 1, fontFamily: "'Playfair Display', serif" }}>{totalScore}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 6 }}>out of {roundsToPlay * 100}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: ratingInfo.color, marginBottom: 14, letterSpacing: "0.01em" }}>{ratingInfo.label}</div>
-                  <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", background: "linear-gradient(135deg, #6366f1, #4f46e5)" }}>
-                    <RotateCcw size={13} style={{ marginRight: 5 }} />Play Again
-                  </button>
+                <div style={{ ...dPanelHeader, background: "rgba(99,102,241,0.25)", borderBottom: "1px solid rgba(99,102,241,0.2)", color: "#a5b4fc" }}>
+                  Final Result
+                </div>
+                <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ textAlign: "center", minWidth: 64 }}>
+                    <div style={{ fontSize: 40, fontWeight: 900, color: "#fff", lineHeight: 1, fontFamily: "'Playfair Display', serif" }}>{totalScore}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>/ {roundsToPlay * 100}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 6 }}>{ratingInfo.label}</div>
+                    <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #6366f1, #4f46e5)" }}>
+                      <RotateCcw size={12} style={{ marginRight: 4 }} />Play Again
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Round History */}
-            <div style={dPanel}>
-              <div style={dPanelHeader}>Round History</div>
-              {history.length === 0 ? (
-                <p style={{ margin: 0, padding: "12px 16px", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No rounds yet.</p>
-              ) : (
-                <div style={{ overflowY: "auto", maxHeight: 300 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                        <th style={dTh}>Town</th>
-                        <th style={dTh}>Clicked</th>
-                        <th style={{ ...dTh, textAlign: "right" }}>Pts</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.map((h, i) => (
-                        <tr key={i} className="town-row" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.15s" }}>
-                          <td style={dTd}>{h.town}</td>
-                          <td style={{ ...dTd, color: h.town === h.guessed ? "#10b981" : "rgba(255,255,255,0.4)" }}>{h.guessed}</td>
-                          <td style={{ ...dTd, textAlign: "right", fontWeight: 700, color: scoreColor(h.score) }}>
-                            {h.score}
-                            <ScoreBar score={h.score} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* How to Play — only show when game hasn't started or is mid-game with no history */}
+            {(!started || (started && !gameOver && history.length === 0)) && (
+              <div style={dPanel}>
+                <div style={dPanelHeader}>How to Play</div>
+                <div style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.65 }}>
+                  A CT town name appears above. Click where you think it is. Score 0–100 based on proximity.
+                  <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.22)" }}>
+                    {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Round History — no maxHeight, all 10 rows always visible */}
+            {history.length > 0 && (
+              <div style={dPanel}>
+                <div style={dPanelHeader}>Round History</div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                      <th style={dTh}>Town</th>
+                      <th style={dTh}>Clicked</th>
+                      <th style={{ ...dTh, textAlign: "right" }}>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h, i) => (
+                      <tr key={i} className="town-row" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.15s" }}>
+                        <td style={dTdCompact}>{h.town}</td>
+                        <td style={{ ...dTdCompact, color: h.town === h.guessed ? "#34d399" : "rgba(255,255,255,0.38)" }}>{h.guessed}</td>
+                        <td style={{ ...dTdCompact, textAlign: "right", fontWeight: 700, color: scoreColor(h.score) }}>
+                          {h.score}
+                          <ScoreBar score={h.score} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {gameOver && (
+                  <div style={{ padding: "6px 12px 8px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.02)" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Total</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "'Playfair Display', serif" }}>{totalScore}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
@@ -773,8 +774,9 @@ const dPanelHeader = {
   padding: "8px 16px", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)",
   textTransform: "uppercase", letterSpacing: "0.1em"
 };
-const dTh = { padding: "6px 12px", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" };
+const dTh = { padding: "5px 12px", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" };
 const dTd = { padding: "6px 12px", fontSize: 12, color: "rgba(255,255,255,0.75)" };
+const dTdCompact = { padding: "4px 12px", fontSize: 12, color: "rgba(255,255,255,0.75)" };
 
 // ─── Mobile styles ────────────────────────────────────────────────────────────
 const mBtnPrimary = {
