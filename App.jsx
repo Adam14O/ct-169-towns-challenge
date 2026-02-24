@@ -325,7 +325,7 @@ export default function CTGame() {
 
         {/* Mobile Header */}
         <div style={{
-          padding: "12px 16px 10px",
+          padding: "8px 14px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           borderBottom: "1px solid #d1daea",
           background: "#0f2d5e"
@@ -359,10 +359,10 @@ export default function CTGame() {
         {/* Prompt pill */}
         {started && !gameOver && (
           <div style={{
-            margin: "10px 16px 0",
+            margin: "6px 12px 0",
             background: revealed ? "#ecfdf5" : "#eff6ff",
             border: `1px solid ${revealed ? "#6ee7b7" : "#93c5fd"}`,
-            borderRadius: 10, padding: "8px 14px",
+            borderRadius: 8, padding: "6px 12px",
             display: "flex", alignItems: "center", gap: 8,
             animation: "fadeSlideUp 0.3s ease both"
           }}>
@@ -381,27 +381,27 @@ export default function CTGame() {
 
         {/* Progress bar */}
         {started && (
-          <div style={{ margin: "8px 16px 0", height: 3, background: "#d1daea", borderRadius: 2 }}>
+          <div style={{ margin: "5px 12px 0", height: 3, background: "#d1daea", borderRadius: 2 }}>
             <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 2, transition: "width 0.4s ease" }} />
           </div>
         )}
 
         {/* MAP */}
         <div style={{
-          margin: "10px 16px 0",
-          borderRadius: 12,
+          margin: "6px 12px 0",
+          borderRadius: 10,
           overflow: "hidden",
           border: "1px solid #c8d9ee",
           background: "linear-gradient(135deg, #e8f0fb 0%, #dce8f7 100%)",
-          boxShadow: "0 2px 12px rgba(15,45,94,0.1)",
+          boxShadow: "0 2px 8px rgba(15,45,94,0.08)",
           lineHeight: 0
         }}>
           {mapState.loading ? (
-            <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
+            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
               Loading map…
             </div>
           ) : mapState.error ? (
-            <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>
+            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>
               {mapState.error}
             </div>
           ) : MapSVG}
@@ -409,36 +409,36 @@ export default function CTGame() {
 
         {/* Score strip (always visible) */}
         <div style={{
-          margin: "10px 16px 0",
-          display: "flex", gap: 8
+          margin: "6px 12px 0",
+          display: "flex", gap: 6
         }}>
           <div style={{
-            flex: 1, background: "#fff", borderRadius: 10,
-            border: "1px solid #dce8f5", padding: "10px 14px",
+            flex: 1, background: "#fff", borderRadius: 8,
+            border: "1px solid #dce8f5", padding: "7px 12px",
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-            <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Score</span>
-            <span style={{ fontSize: 24, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
+            <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Score</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
               className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
           </div>
           {gameOver && (
             <div style={{
-              flex: 1, background: "#fff", borderRadius: 10,
-              border: "1px solid #dce8f5", padding: "10px 14px",
+              flex: 1, background: "#fff", borderRadius: 8,
+              border: "1px solid #dce8f5", padding: "7px 12px",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
               <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>out of {roundsToPlay * 100}</span>
             </div>
           )}
         </div>
 
         {/* Action button */}
-        <div style={{ margin: "10px 16px 0" }}>
+        <div style={{ margin: "6px 12px 0" }}>
           {!started && (
             <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169}
               style={{ ...mBtnLarge, width: "100%" }}>
-              <Play size={16} /> Start Game
+              <Play size={15} /> Start Game
             </button>
           )}
           {started && !gameOver && revealed && (
@@ -447,13 +447,13 @@ export default function CTGame() {
             </button>
           )}
           {started && !gameOver && !revealed && (
-            <div style={{ textAlign: "center", padding: "8px 0", fontSize: 12, color: "#64748b" }}>
+            <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, color: "#64748b" }}>
               Tap a town on the map
             </div>
           )}
           {gameOver && (
             <button onClick={startGame} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #065f46, #059669)" }}>
-              <RotateCcw size={15} /> Play Again
+              <RotateCcw size={14} /> Play Again
             </button>
           )}
         </div>
@@ -461,14 +461,14 @@ export default function CTGame() {
         {/* Round History — compact table */}
         {history.length > 0 && (
           <div style={{
-            margin: "10px 16px 16px",
+            margin: "6px 12px 10px",
             background: "#fff",
-            borderRadius: 12, border: "1px solid #dce8f5",
+            borderRadius: 10, border: "1px solid #dce8f5",
             overflow: "hidden"
           }}>
             <div style={{
-              padding: "8px 14px 6px", borderBottom: "1px solid #e8f0fb",
-              fontSize: 10, fontWeight: 700, color: "#5a7a9e",
+              padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
+              fontSize: 9, fontWeight: 700, color: "#5a7a9e",
               textTransform: "uppercase", letterSpacing: "0.1em", display: "flex"
             }}>
               <span style={{ flex: "0 0 38%" }}>Town</span>
@@ -477,11 +477,11 @@ export default function CTGame() {
             </div>
             {history.map((h, i) => (
               <div key={i} style={{
-                display: "flex", alignItems: "center", padding: "5px 14px",
+                display: "flex", alignItems: "center", padding: "3px 12px",
                 borderBottom: i < history.length - 1 ? "1px solid #f1f5f9" : "none",
                 animation: `fadeSlideUp 0.3s ease ${i * 0.04}s both`
               }}>
-                <span style={{ flex: "0 0 38%", fontSize: 12, color: "#1e293b", fontWeight: 500 }}>{h.town}</span>
+                <span style={{ flex: "0 0 38%", fontSize: 12, color: "#1e293b", fontWeight: 600 }}>{h.town}</span>
                 <span style={{ flex: "0 0 40%", fontSize: 11, color: h.town === h.guessed ? "#059669" : "#64748b" }}>
                   {h.guessed}
                 </span>
@@ -492,12 +492,12 @@ export default function CTGame() {
             ))}
             {gameOver && (
               <div style={{
-                padding: "8px 14px", borderTop: "1px solid #e2e8f0",
+                padding: "5px 12px", borderTop: "1px solid #e2e8f0",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 background: "#f8fafc"
               }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>{totalScore}</span>
+                <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
+                <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>{totalScore}</span>
               </div>
             )}
           </div>
@@ -792,8 +792,8 @@ const mBtnOutline = {
   border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", color: "#fff"
 };
 const mBtnLarge = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px 20px",
-  borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer",
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 20px",
+  borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer",
   border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff",
-  letterSpacing: "0.01em", boxShadow: "0 4px 16px rgba(37,99,235,0.25)"
+  letterSpacing: "0.01em", boxShadow: "0 3px 12px rgba(37,99,235,0.25)"
 };
