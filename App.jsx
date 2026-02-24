@@ -70,6 +70,7 @@ function scoreFromDistance(d) {
   return Math.round(100 * Math.pow(1 - Math.min(maxD, d) / maxD, 1.6));
 }
 function rating(total) {
+  if (total >= 1000) return { label: "Human GPS", color: "#b45309" };
   if (total >= 900) return { label: "Connecticut Legend", color: "#b45309" };
   if (total >= 750) return { label: "Town Master", color: "#0f766e" };
   if (total >= 600) return { label: "Strong Local", color: "#1d4ed8" };
