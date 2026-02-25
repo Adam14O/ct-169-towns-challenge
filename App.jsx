@@ -344,35 +344,26 @@ export default function CTGame() {
         const score = h.score;
         const labelColor = score >= 80 ? "#065f46" : score >= 50 ? "#92400e" : "#9f1239";
         const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
-        const borderColor = score >= 80 ? "#6ee7b7" : score >= 50 ? "#fcd34d" : "#fca5a5";
-        const fontSize = 2.8;
-        const padX = 1.0;
-        const padY = 0.7;
-        const labelW = t.name.length * 1.6 + padX * 2;
-        const labelH = fontSize + padY * 2;
         return (
           <g key={i}>
             {/* dot marker */}
-            <circle cx={t.centroid.x} cy={t.centroid.y} r={1.3} fill={labelColor} opacity={0.95} />
-            <circle cx={t.centroid.x} cy={t.centroid.y} r={2.2} fill="none" stroke={labelColor} strokeWidth="0.4" opacity={0.4} />
-            {/* label background with border */}
+            <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
+            {/* label background */}
             <rect
-              x={t.centroid.x + 1.8}
-              y={t.centroid.y - labelH / 2}
-              width={labelW}
-              height={labelH}
-              rx={0.7}
+              x={t.centroid.x + 1.2}
+              y={t.centroid.y - 2.2}
+              width={t.name.length * 1.05 + 1.2}
+              height={2.8}
+              rx={0.5}
               fill={bgColor}
-              stroke={borderColor}
-              strokeWidth="0.3"
-              opacity={0.97}
+              opacity={0.92}
             />
             {/* label text */}
             <text
-              x={t.centroid.x + 1.8 + padX}
-              y={t.centroid.y + fontSize * 0.35}
-              fontSize={fontSize}
-              fontWeight="800"
+              x={t.centroid.x + 1.8}
+              y={t.centroid.y - 0.5}
+              fontSize="1.85"
+              fontWeight="700"
               fill={labelColor}
               fontFamily="DM Sans, system-ui, sans-serif"
             >{t.name}</text>
