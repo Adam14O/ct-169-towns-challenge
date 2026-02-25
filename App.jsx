@@ -480,7 +480,7 @@ export default function CTGame() {
             <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
             <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
               className={scoreAnim ? "score-pop" : ""}>
-              {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+              {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
             </span>
           </div>
           {!gameOver ? (
@@ -502,7 +502,7 @@ export default function CTGame() {
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
-              <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
+              <span style={{ fontSize: 10, color: "#0f2d5e", fontWeight: 800, marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
           )}
         </div>
@@ -593,10 +593,10 @@ export default function CTGame() {
               }}>
                 <div>
                   <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
-                  <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
+                  <span style={{ fontSize: 10, color: "#0f2d5e", fontWeight: 800, marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
                 </div>
                 <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>
-                  {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+                  {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
                 </span>
               </div>
             )}
