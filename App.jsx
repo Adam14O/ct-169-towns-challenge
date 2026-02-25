@@ -344,26 +344,35 @@ export default function CTGame() {
         const score = h.score;
         const labelColor = score >= 80 ? "#065f46" : score >= 50 ? "#92400e" : "#9f1239";
         const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
+        const borderColor = score >= 80 ? "#6ee7b7" : score >= 50 ? "#fcd34d" : "#fca5a5";
+        const fontSize = 2.8;
+        const padX = 1.0;
+        const padY = 0.7;
+        const labelW = t.name.length * 1.6 + padX * 2;
+        const labelH = fontSize + padY * 2;
         return (
           <g key={i}>
             {/* dot marker */}
-            <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
-            {/* label background */}
+            <circle cx={t.centroid.x} cy={t.centroid.y} r={1.3} fill={labelColor} opacity={0.95} />
+            <circle cx={t.centroid.x} cy={t.centroid.y} r={2.2} fill="none" stroke={labelColor} strokeWidth="0.4" opacity={0.4} />
+            {/* label background with border */}
             <rect
-              x={t.centroid.x + 1.2}
-              y={t.centroid.y - 2.2}
-              width={t.name.length * 1.05 + 1.2}
-              height={2.8}
-              rx={0.5}
+              x={t.centroid.x + 1.8}
+              y={t.centroid.y - labelH / 2}
+              width={labelW}
+              height={labelH}
+              rx={0.7}
               fill={bgColor}
-              opacity={0.92}
+              stroke={borderColor}
+              strokeWidth="0.3"
+              opacity={0.97}
             />
             {/* label text */}
             <text
-              x={t.centroid.x + 1.8}
-              y={t.centroid.y - 0.5}
-              fontSize="1.85"
-              fontWeight="700"
+              x={t.centroid.x + 1.8 + padX}
+              y={t.centroid.y + fontSize * 0.35}
+              fontSize={fontSize}
+              fontWeight="800"
               fill={labelColor}
               fontFamily="DM Sans, system-ui, sans-serif"
             >{t.name}</text>
@@ -441,7 +450,7 @@ export default function CTGame() {
             <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>
               {revealed
                 ? <><span style={{ color: "#047857", fontWeight: 700 }}>{roundScore} pts</span> · Clicked: <span style={{ color: "#475569" }}>{lastH?.guessed}</span></>
-                : <>Find <span style={{ color: "#2563eb", fontWeight: 700, textDecoration: "underline" }}>{currentTown?.name}</span></>
+                : <>Find <span style={{ color: "#2563eb", fontWeight: 800, textDecoration: "underline", fontSize: 17 }}>{currentTown?.name}</span></>
               }
             </span>
           </div>
@@ -694,7 +703,7 @@ export default function CTGame() {
                 <>
                   <MapPin size={15} color="#2563eb" />
                   <span style={{ fontSize: 14, color: "#1e3a5f", fontWeight: 500 }}>
-                    Round {round + 1} of {roundsToPlay} — Find <span style={{ color: "#2563eb", fontWeight: 700, textDecoration: "underline" }}>{currentTown?.name}</span>
+                    Round {round + 1} of {roundsToPlay} — Find <span style={{ color: "#2563eb", fontWeight: 800, textDecoration: "underline", fontSize: 18 }}>{currentTown?.name}</span>
                   </span>
                 </>
               )}
