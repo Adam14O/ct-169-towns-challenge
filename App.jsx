@@ -173,6 +173,8 @@ export default function CTGame() {
   const [totalScore, setTotalScore] = useState(0);
   const [history, setHistory] = useState([]);
   const [scoreAnim, setScoreAnim] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const remainingPool = useRef([]);
 
   const roundsToPlay = 10;
 
@@ -204,17 +206,32 @@ export default function CTGame() {
   }, [mapState.towns]);
 
   const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
-  const gameOver = started && round >= roundsToPlay;
+  const gameOver = started && (round >= roundsToPlay || timeLeft <= 0);
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
+
+  // ── Countdown timer ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!started || gameOver) return;
+    const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearInterval(id);
+  }, [started, gameOver]);
+
+  const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   const startGame = () => {
     if (towns.length < 169) return;
-    const indices = towns.map((_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+    // ── No-repeat pool: refill when fewer than 10 towns remain ──────────────
+    if (remainingPool.current.length < roundsToPlay) {
+      const all = towns.map((_, i) => i);
+      for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [all[i], all[j]] = [all[j], all[i]];
+      }
+      remainingPool.current = all;
     }
-    setOrder(indices.slice(0, roundsToPlay));
+    const picked = remainingPool.current.splice(0, roundsToPlay);
+    setOrder(picked);
+    setTimeLeft(60);
     setStarted(true); setRound(0); setGuess(null);
     setRevealed(false); setRoundScore(0); setTotalScore(0); setHistory([]);
   };
@@ -274,13 +291,18 @@ export default function CTGame() {
       {towns.map((t) => {
         const isCorrect = revealed && currentTown && t.key === currentTown.key;
         const isClicked = revealed && guess?.clickedTownName && normTownName(guess.clickedTownName) === t.key;
+        const wasCorrectAnswer = gameOver && history.some(h => normTownName(h.town) === t.key);
+        const wasCorrectGuess = gameOver && history.some(h => h.town === h.guessed && normTownName(h.town) === t.key);
+        const wasWrongClick = gameOver && history.some(h => h.town !== h.guessed && normTownName(h.guessed) === t.key);
+        const gameOverGreen = wasCorrectAnswer;
+        const gameOverRed = wasWrongClick && !wasCorrectAnswer;
         return (
-          <g key={t.id} filter={isCorrect || isClicked ? "url(#town-shadow)" : undefined}>
+          <g key={t.id} filter={isCorrect || isClicked || gameOverGreen || gameOverRed ? "url(#town-shadow)" : undefined}>
             {t.paths.map((d, i) => (
               <path key={i} d={d}
-                fill={isCorrect ? "#10b981" : isClicked ? "#f43f5e" : "#c7ddf9"}
-                stroke={isCorrect ? "#065f46" : isClicked ? "#9f1239" : "#3b6fb5"}
-                strokeWidth={isCorrect || isClicked ? "0.35" : "0.2"}
+                fill={isCorrect || gameOverGreen ? "#10b981" : isClicked || gameOverRed ? "#f43f5e" : "#c7ddf9"}
+                stroke={isCorrect || gameOverGreen ? "#065f46" : isClicked || gameOverRed ? "#9f1239" : "#3b6fb5"}
+                strokeWidth={isCorrect || isClicked || gameOverGreen || gameOverRed ? "0.35" : "0.2"}
                 style={{ transition: "fill 0.25s ease" }}
               />
             ))}
@@ -303,6 +325,39 @@ export default function CTGame() {
           <circle cx={currentTown.centroid.x} cy={currentTown.centroid.y} r={1.8} fill="none" stroke="#1e3a5f" strokeWidth="0.3" opacity={0.4} />
         </g>
       )}
+      {/* Town name labels shown after game over */}
+      {gameOver && history.map((h, i) => {
+        const t = towns.find(t => normTownName(t.name) === normTownName(h.town));
+        if (!t) return null;
+        const score = h.score;
+        const labelColor = score >= 80 ? "#065f46" : score >= 50 ? "#92400e" : "#9f1239";
+        const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
+        return (
+          <g key={i}>
+            {/* dot marker */}
+            <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
+            {/* label background */}
+            <rect
+              x={t.centroid.x + 1.2}
+              y={t.centroid.y - 2.2}
+              width={t.name.length * 1.05 + 1.2}
+              height={2.8}
+              rx={0.5}
+              fill={bgColor}
+              opacity={0.92}
+            />
+            {/* label text */}
+            <text
+              x={t.centroid.x + 1.8}
+              y={t.centroid.y - 0.5}
+              fontSize="1.85"
+              fontWeight="700"
+              fill={labelColor}
+              fontFamily="DM Sans, system-ui, sans-serif"
+            >{t.name}</text>
+          </g>
+        );
+      })}
       <text x="98.5" y="59" textAnchor="end" fontSize="1.6" fill="#a0b4cc" fontFamily="DM Sans, sans-serif">Game by Adam Osmond</text>
     </svg>
   );
@@ -419,8 +474,16 @@ export default function CTGame() {
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
             <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Score</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
-              className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              {started && !gameOver && (
+                <span style={{
+                  fontSize: 16, fontWeight: 700, fontFamily: "monospace",
+                  color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#2563eb"
+                }}>{fmtTime(timeLeft)}</span>
+              )}
+              <span style={{ fontSize: 22, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
+                className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+            </div>
           </div>
           {gameOver && (
             <div style={{
@@ -471,9 +534,9 @@ export default function CTGame() {
               fontSize: 9, fontWeight: 700, color: "#5a7a9e",
               textTransform: "uppercase", letterSpacing: "0.1em"
             }}>How to Play</div>
-            <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+            <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
               A Connecticut town name appears at the top. Tap where you think it is on the map. Score 0–100 per town based on how close you are — 100 for a direct hit!
-              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8" }}>
+              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                 {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
               </div>
             </div>
@@ -688,10 +751,19 @@ export default function CTGame() {
                     <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
                     </span>
-                    <span style={{
-                      fontSize: 32, fontWeight: 800, color: "#0f2d5e", lineHeight: 1,
-                      fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
-                    }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                      <span style={{
+                        fontSize: 32, fontWeight: 800, color: "#0f2d5e", lineHeight: 1,
+                        fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
+                      }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+                      {started && !gameOver && (
+                        <span style={{
+                          fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: "monospace",
+                          color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#2563eb",
+                          minWidth: 36, textAlign: "right"
+                        }}>{fmtTime(timeLeft)}</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ height: 5, background: "#dce8f5", borderRadius: 3, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)" }} />
@@ -727,9 +799,9 @@ export default function CTGame() {
             {(!started || (started && !gameOver && history.length === 0)) && (
               <div style={dPanel}>
                 <div style={dPanelHeader}>How to Play</div>
-                <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65 }}>
+                <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
                   A CT town name appears above. Click where you think it is. Score 0–100 based on proximity.
-                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8" }}>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                     {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
                   </div>
                 </div>
