@@ -174,6 +174,7 @@ export default function CTGame() {
   const [history, setHistory] = useState([]);
   const [scoreAnim, setScoreAnim] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
+  const [timeTaken, setTimeTaken] = useState(0);
   const remainingPool = useRef([]);
 
   const roundsToPlay = 10;
@@ -212,9 +213,19 @@ export default function CTGame() {
   // ── Countdown timer ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!started || gameOver) return;
-    const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    const id = setInterval(() => setTimeLeft((t) => {
+      if (t <= 1) { setTimeTaken(60); return 0; }
+      return t - 1;
+    }), 1000);
     return () => clearInterval(id);
   }, [started, gameOver]);
+
+  // Capture time taken when all rounds complete before timer runs out
+  useEffect(() => {
+    if (gameOver && timeTaken === 0 && timeLeft > 0) {
+      setTimeTaken(60 - timeLeft);
+    }
+  }, [gameOver]);
 
   const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -232,6 +243,7 @@ export default function CTGame() {
     const picked = remainingPool.current.splice(0, roundsToPlay);
     setOrder(picked);
     setTimeLeft(60);
+    setTimeTaken(0);
     setStarted(true); setRound(0); setGuess(null);
     setRevealed(false); setRoundScore(0); setTotalScore(0); setHistory([]);
   };
@@ -463,36 +475,38 @@ export default function CTGame() {
           ) : MapSVG}
         </div>
 
-        {/* Score strip (always visible) */}
-        <div style={{
-          margin: "6px 12px 0",
-          display: "flex", gap: 6
-        }}>
+        {/* Score strip — two separate boxes */}
+        <div style={{ margin: "6px 12px 0", display: "flex", gap: 6 }}>
           <div style={{
             flex: 1, background: "#fff", borderRadius: 8,
             border: "1px solid #dce8f5", padding: "7px 12px",
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-            <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Score</span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              {started && !gameOver && (
-                <span style={{
-                  fontSize: 16, fontWeight: 700, fontFamily: "monospace",
-                  color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#2563eb"
-                }}>{fmtTime(timeLeft)}</span>
-              )}
-              <span style={{ fontSize: 22, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
-                className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
-            </div>
+            <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
+              className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
           </div>
-          {gameOver && (
+          {!gameOver ? (
+            <div style={{
+              flex: "0 0 80px", background: "#fff", borderRadius: 8,
+              border: `1px solid ${timeLeft <= 10 ? "#fecaca" : timeLeft <= 20 ? "#fed7aa" : "#dce8f5"}`,
+              padding: "7px 10px",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
+            }}>
+              <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>Time</span>
+              <span style={{
+                fontSize: 18, fontWeight: 800, fontFamily: "monospace",
+                color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#0f2d5e"
+              }}>{started ? fmtTime(timeLeft) : "1:00"}</span>
+            </div>
+          ) : (
             <div style={{
               flex: 1, background: "#fff", borderRadius: 8,
               border: "1px solid #dce8f5", padding: "7px 12px",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
-              <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>out of {roundsToPlay * 100}</span>
+              <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
           )}
         </div>
@@ -581,7 +595,10 @@ export default function CTGame() {
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 background: "#f8fafc"
               }}>
-                <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
+                <div>
+                  <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
+                  <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
+                </div>
                 <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>{totalScore}</span>
               </div>
             )}
@@ -743,32 +760,37 @@ export default function CTGame() {
 
             {/* Score + Final Result row — side by side when game over, or just score */}
             {!gameOver ? (
-              /* Score Card (active game) */
-              <div style={dPanel}>
-                <div style={dPanelHeader}>Score</div>
-                <div style={{ padding: "10px 14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
-                    <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
-                    </span>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              /* Two boxes: Score | Timer */
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ ...dPanel, flex: 1 }}>
+                  <div style={dPanelHeader}>Score</div>
+                  <div style={{ padding: "10px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
+                      <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
+                      </span>
                       <span style={{
                         fontSize: 32, fontWeight: 800, color: "#0f2d5e", lineHeight: 1,
                         fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
                       }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
-                      {started && !gameOver && (
-                        <span style={{
-                          fontSize: 18, fontWeight: 700, lineHeight: 1, fontFamily: "monospace",
-                          color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#2563eb",
-                          minWidth: 36, textAlign: "right"
-                        }}>{fmtTime(timeLeft)}</span>
-                      )}
+                    </div>
+                    <div style={{ height: 5, background: "#dce8f5", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", marginTop: 2 }}>max {roundsToPlay * 100}</div>
+                  </div>
+                </div>
+                <div style={{ ...dPanel, flex: "0 0 90px", textAlign: "center" }}>
+                  <div style={dPanelHeader}>Time</div>
+                  <div style={{ padding: "10px 8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{
+                      fontSize: 28, fontWeight: 800, lineHeight: 1, fontFamily: "monospace",
+                      color: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "#0f2d5e"
+                    }}>{fmtTime(timeLeft)}</span>
+                    <div style={{ height: 4, background: "#dce8f5", borderRadius: 2, overflow: "hidden", marginTop: 7, width: "100%" }}>
+                      <div style={{ height: "100%", width: `${(timeLeft / 60) * 100}%`, background: timeLeft <= 10 ? "#dc2626" : timeLeft <= 20 ? "#ea580c" : "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 2, transition: "width 1s linear" }} />
                     </div>
                   </div>
-                  <div style={{ height: 5, background: "#dce8f5", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)" }} />
-                  </div>
-                  <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", marginTop: 2 }}>max {roundsToPlay * 100}</div>
                 </div>
               </div>
             ) : (
@@ -786,7 +808,10 @@ export default function CTGame() {
                     <div style={{ fontSize: 10, color: "#6b7280" }}>/ {roundsToPlay * 100}</div>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 6 }}>{ratingInfo.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 4 }}>{ratingInfo.label}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
+                      ⏱ Finished in <span style={{ fontWeight: 700, color: "#1e3a5f" }}>{fmtTime(timeTaken)}</span>
+                    </div>
                     <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
                       <RotateCcw size={12} style={{ marginRight: 4 }} />Play Again
                     </button>
