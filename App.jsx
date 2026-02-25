@@ -346,10 +346,10 @@ export default function CTGame() {
             {/* label background */}
             <rect
               x={t.centroid.x + 1.2}
-              y={t.centroid.y - 2.2}
-              width={t.name.length * 1.05 + 1.2}
-              height={2.8}
-              rx={0.5}
+              y={t.centroid.y - 1.8}
+              width={t.name.length * 0.82 + 1.0}
+              height={2.2}
+              rx={0.4}
               fill={bgColor}
               opacity={0.92}
             />
@@ -357,7 +357,7 @@ export default function CTGame() {
             <text
               x={t.centroid.x + 1.8}
               y={t.centroid.y - 0.5}
-              fontSize="1.85"
+              fontSize="1.4"
               fontWeight="700"
               fill={labelColor}
               fontFamily="DM Sans, system-ui, sans-serif"
@@ -595,7 +595,9 @@ export default function CTGame() {
                   <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
                   <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
                 </div>
-                <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>{totalScore}</span>
+                <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>
+                  {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+                </span>
               </div>
             )}
           </div>
