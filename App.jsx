@@ -178,6 +178,7 @@ export default function CTGame() {
   // ── Share state ──────────────────────────────────────────────────────────────
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef(null);
+  const mapSvgRef = useRef(null);
   const remainingPool = useRef([]);
 
   const roundsToPlay = 10;
@@ -273,118 +274,165 @@ export default function CTGame() {
     setGuess(null); setRevealed(false); setRoundScore(0);
   };
 
-  // ── Share handler — opens score card image in new tab ────────────────────────
+  // ── Share handler — includes full map + results ───────────────────────────────
   const handleShare = () => {
     if (sharing) return;
     setSharing(true);
 
     try {
       const ri = rating(totalScore);
-      const W = 640, ROW_H = 36, HEADER_H = 160, FOOTER_H = 48;
-      const H = HEADER_H + history.length * ROW_H + FOOTER_H;
+      const W = 640;
+      const MAP_H = 240; // map section height
+      const HEADER_H = 72;
+      const SCORE_H = 68;
+      const ROW_H = 36;
+      const TABLE_HEAD_H = 28;
+      const TOTAL_H = 38;
+      const FOOTER_H = 48;
+      const H = HEADER_H + MAP_H + SCORE_H + TABLE_HEAD_H + history.length * ROW_H + TOTAL_H + FOOTER_H;
+
       const canvas = document.createElement("canvas");
       canvas.width = W;
       canvas.height = H;
       const ctx = canvas.getContext("2d");
 
-      // background
-      ctx.fillStyle = "#f0f4fa";
-      ctx.fillRect(0, 0, W, H);
+      const drawEverything = (mapImg) => {
+        // background
+        ctx.fillStyle = "#f0f4fa";
+        ctx.fillRect(0, 0, W, H);
 
-      // header
-      ctx.fillStyle = "#0f2d5e";
-      ctx.fillRect(0, 0, W, 72);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 26px Georgia";
-      ctx.fillText("CT 169 Towns Challenge", 28, 44);
-      ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.font = "13px Arial";
-      ctx.fillText("BY ADAM OSMOND", 30, 63);
+        // ── header ──
+        ctx.fillStyle = "#0f2d5e";
+        ctx.fillRect(0, 0, W, HEADER_H);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 26px Georgia";
+        ctx.fillText("CT 169 Towns Challenge", 28, 44);
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.font = "13px Arial";
+        ctx.fillText("BY ADAM OSMOND", 30, 63);
 
-      // score card
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(20, 82, W - 40, 68);
-      ctx.fillStyle = "#0f2d5e";
-      ctx.font = "bold 48px Georgia";
-      const scoreStr = String(totalScore);
-      ctx.fillText(scoreStr, 36, 134);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "18px Arial";
-      ctx.fillText("/ " + (roundsToPlay * 100), 36 + ctx.measureText(scoreStr).width + 8, 134);
-      ctx.fillStyle = ri.color;
-      ctx.font = "bold 18px Arial";
-      ctx.fillText(ri.label, W - 40 - ctx.measureText(ri.label).width, 112);
-      ctx.fillStyle = "#475569";
-      ctx.font = "14px Arial";
-      const timeTxt = "Time: " + fmtTime(timeTaken);
-      ctx.fillText(timeTxt, W - 40 - ctx.measureText(timeTxt).width, 134);
+        // ── map ──
+        const mapPad = 10;
+        ctx.fillStyle = "#e8f0fb";
+        ctx.fillRect(mapPad, HEADER_H + mapPad, W - mapPad * 2, MAP_H - mapPad * 2);
+        if (mapImg) {
+          // draw SVG map centered, preserving aspect ratio (viewBox 100x60)
+          const aspect = VB_W / VB_H;
+          const availW = W - mapPad * 2;
+          const availH = MAP_H - mapPad * 2;
+          let drawW = availW, drawH = availW / aspect;
+          if (drawH > availH) { drawH = availH; drawW = availH * aspect; }
+          const dx = mapPad + (availW - drawW) / 2;
+          const dy = HEADER_H + mapPad + (availH - drawH) / 2;
+          ctx.drawImage(mapImg, dx, dy, drawW, drawH);
+        }
 
-      // table header
-      ctx.fillStyle = "#f4f8fd";
-      ctx.fillRect(20, 162, W - 40, 28);
-      ctx.fillStyle = "#5a7a9e";
-      ctx.font = "bold 11px Arial";
-      ctx.fillText("TOWN", 36, 181);
-      ctx.fillText("CLICKED", 240, 181);
-      ctx.fillText("PTS", W - 55, 181);
-
-      // rows
-      history.forEach((h, i) => {
-        const y = 190 + i * ROW_H;
-        ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#f8fafc";
-        ctx.fillRect(20, y, W - 40, ROW_H);
-        ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 14px Arial";
-        ctx.fillText(h.town, 36, y + 24);
-        ctx.fillStyle = h.town === h.guessed ? "#059669" : "#64748b";
+        // ── score card ──
+        const cardY = HEADER_H + MAP_H;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(20, cardY + 8, W - 40, SCORE_H);
+        ctx.fillStyle = "#0f2d5e";
+        ctx.font = "bold 48px Georgia";
+        const scoreStr = String(totalScore);
+        ctx.fillText(scoreStr, 36, cardY + 56);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "18px Arial";
+        ctx.fillText("/ " + (roundsToPlay * 100), 36 + ctx.measureText(scoreStr).width + 8, cardY + 56);
+        ctx.fillStyle = ri.color;
+        ctx.font = "bold 18px Arial";
+        ctx.fillText(ri.label, W - 40 - ctx.measureText(ri.label).width, cardY + 30);
+        ctx.fillStyle = "#475569";
         ctx.font = "14px Arial";
-        ctx.fillText(h.guessed, 240, y + 24);
-        const sc = h.score;
-        ctx.fillStyle = sc >= 80 ? "#059669" : sc >= 60 ? "#d97706" : sc >= 40 ? "#ea580c" : "#dc2626";
-        ctx.font = "bold 14px Arial";
-        const ptsTxt = String(sc);
-        ctx.fillText(ptsTxt, W - 40 - ctx.measureText(ptsTxt).width, y + 24);
-      });
+        const timeTxt = "Time: " + fmtTime(timeTaken);
+        ctx.fillText(timeTxt, W - 40 - ctx.measureText(timeTxt).width, cardY + 52);
 
-      // total row
-      const totalY = 190 + history.length * ROW_H;
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(20, totalY, W - 40, 38);
-      ctx.fillStyle = "#e2e8f0";
-      ctx.fillRect(20, totalY, W - 40, 1);
-      ctx.fillStyle = "#5a7a9e";
-      ctx.font = "bold 11px Arial";
-      ctx.fillText("FINAL SCORE", 36, totalY + 24);
-      ctx.fillStyle = "#0f2d5e";
-      ctx.font = "bold 20px Georgia";
-      const finalTxt = totalScore + " / " + (roundsToPlay * 100);
-      ctx.fillText(finalTxt, W - 40 - ctx.measureText(finalTxt).width, totalY + 26);
+        // ── table header ──
+        const tableY = cardY + SCORE_H + 4;
+        ctx.fillStyle = "#f4f8fd";
+        ctx.fillRect(20, tableY, W - 40, TABLE_HEAD_H);
+        ctx.fillStyle = "#5a7a9e";
+        ctx.font = "bold 11px Arial";
+        ctx.fillText("TOWN", 36, tableY + 19);
+        ctx.fillText("CLICKED", 240, tableY + 19);
+        ctx.fillText("PTS", W - 55, tableY + 19);
 
-      // footer
-      const footerY = totalY + 39;
-      ctx.fillStyle = "#0f2d5e";
-      ctx.fillRect(0, footerY, W, H - footerY);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 15px Arial";
-      const promoTxt = "Can you beat me? Play at run169towns.org";
-      ctx.fillText(promoTxt, (W - ctx.measureText(promoTxt).width) / 2, footerY + 30);
+        // ── rows ──
+        history.forEach((h, i) => {
+          const y = tableY + TABLE_HEAD_H + i * ROW_H;
+          ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#f8fafc";
+          ctx.fillRect(20, y, W - 40, ROW_H);
+          ctx.fillStyle = "#1e293b";
+          ctx.font = "bold 14px Arial";
+          ctx.fillText(h.town, 36, y + 24);
+          ctx.fillStyle = h.town === h.guessed ? "#059669" : "#64748b";
+          ctx.font = "14px Arial";
+          ctx.fillText(h.guessed, 240, y + 24);
+          const sc = h.score;
+          ctx.fillStyle = sc >= 80 ? "#059669" : sc >= 60 ? "#d97706" : sc >= 40 ? "#ea580c" : "#dc2626";
+          ctx.font = "bold 14px Arial";
+          const ptsTxt = String(sc);
+          ctx.fillText(ptsTxt, W - 40 - ctx.measureText(ptsTxt).width, y + 24);
+        });
 
-      // open in new tab — works everywhere including iframes
-      const dataURL = canvas.toDataURL("image/png");
-      const win = window.open();
-      if (win) {
-        win.document.write('<img src="' + dataURL + '" style="max-width:100%;display:block;margin:auto;" /><br><p style="text-align:center;font-family:Arial;color:#555">Press and hold (mobile) or right-click (desktop) to save, then share!</p>');
-        win.document.title = "CT 169 Towns - My Score";
+        // ── total row ──
+        const totalY = tableY + TABLE_HEAD_H + history.length * ROW_H;
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(20, totalY, W - 40, TOTAL_H);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(20, totalY, W - 40, 1);
+        ctx.fillStyle = "#5a7a9e";
+        ctx.font = "bold 11px Arial";
+        ctx.fillText("FINAL SCORE", 36, totalY + 24);
+        ctx.fillStyle = "#0f2d5e";
+        ctx.font = "bold 20px Georgia";
+        const finalTxt = totalScore + " / " + (roundsToPlay * 100);
+        ctx.fillText(finalTxt, W - 40 - ctx.measureText(finalTxt).width, totalY + 26);
+
+        // ── footer ──
+        const footerY = totalY + TOTAL_H;
+        ctx.fillStyle = "#0f2d5e";
+        ctx.fillRect(0, footerY, W, H - footerY);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 15px Arial";
+        const promoTxt = "Can you beat me? Play at run169towns.org";
+        ctx.fillText(promoTxt, (W - ctx.measureText(promoTxt).width) / 2, footerY + 30);
+
+        // ── open in new tab ──
+        const dataURL = canvas.toDataURL("image/png");
+        const win = window.open();
+        if (win) {
+          win.document.write(
+            '<html><head><title>CT 169 Towns - My Score</title></head><body style="margin:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;padding:20px">' +
+            '<img src="' + dataURL + '" style="max-width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4)" />' +
+            '<p style="font-family:Arial;color:#94a3b8;margin-top:16px;text-align:center">📱 Press and hold (mobile) or right-click (desktop) the image to save, then share!</p>' +
+            '</body></html>'
+          );
+          win.document.close();
+        } else {
+          const a = document.createElement("a");
+          a.href = dataURL;
+          a.download = "ct169-score.png";
+          a.click();
+        }
+        setSharing(false);
+      };
+
+      // Serialize the live SVG map and draw it as an image
+      if (mapSvgRef.current) {
+        const svgEl = mapSvgRef.current;
+        const svgData = new XMLSerializer().serializeToString(svgEl);
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => { drawEverything(img); URL.revokeObjectURL(url); };
+        img.onerror = () => { drawEverything(null); URL.revokeObjectURL(url); };
+        img.src = url;
       } else {
-        // popup blocked — fallback to download link
-        const a = document.createElement("a");
-        a.href = dataURL;
-        a.download = "ct169-score.png";
-        a.click();
+        drawEverything(null);
       }
+
     } catch (e) {
       alert("Error: " + e.message);
-    } finally {
       setSharing(false);
     }
   };
@@ -395,6 +443,7 @@ export default function CTGame() {
   // ── Shared map SVG ──────────────────────────────────────────────────────────
   const MapSVG = (
     <svg
+      ref={mapSvgRef}
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ width: "100%", display: "block", cursor: currentTown && !revealed ? "crosshair" : "default" }}
