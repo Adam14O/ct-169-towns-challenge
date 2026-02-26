@@ -210,14 +210,12 @@ export default function CTGame() {
   const gameOver = started && round >= roundsToPlay;
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
-  // ── Count-up timer ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!started || gameOver) return;
     const id = setInterval(() => setElapsed((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [started, gameOver]);
 
-  // Capture time taken when game ends
   useEffect(() => {
     if (gameOver) setTimeTaken(elapsed);
   }, [gameOver]);
@@ -226,7 +224,6 @@ export default function CTGame() {
 
   const startGame = () => {
     if (towns.length < 169) return;
-    // ── No-repeat pool: refill when fewer than 10 towns remain ──────────────
     if (remainingPool.current.length < roundsToPlay) {
       const all = towns.map((_, i) => i);
       for (let i = all.length - 1; i > 0; i--) {
@@ -287,19 +284,16 @@ export default function CTGame() {
           <feDropShadow dx="0" dy="0.3" stdDeviation="0.4" floodColor="#1e3a5f" floodOpacity="0.15" />
         </filter>
       </defs>
-      {/* subtle grid */}
       {Array.from({ length: 11 }).map((_, i) => (
         <g key={i}>
           <line x1={i * 10} y1={0} x2={i * 10} y2={VB_H} stroke="#dde8f5" strokeWidth="0.18" />
           <line x1={0} y1={i * 6} x2={VB_W} y2={i * 6} stroke="#dde8f5" strokeWidth="0.18" />
         </g>
       ))}
-      {/* towns */}
       {towns.map((t) => {
         const isCorrect = revealed && currentTown && t.key === currentTown.key;
         const isClicked = revealed && guess?.clickedTownName && normTownName(guess.clickedTownName) === t.key;
         const wasCorrectAnswer = gameOver && history.some(h => normTownName(h.town) === t.key);
-        const wasCorrectGuess = gameOver && history.some(h => h.town === h.guessed && normTownName(h.town) === t.key);
         const wasWrongClick = gameOver && history.some(h => h.town !== h.guessed && normTownName(h.guessed) === t.key);
         const gameOverGreen = wasCorrectAnswer;
         const gameOverRed = wasWrongClick && !wasCorrectAnswer;
@@ -316,14 +310,12 @@ export default function CTGame() {
           </g>
         );
       })}
-      {/* guess pin */}
       {guess && (
         <g>
           <circle cx={guess.scorePoint.x} cy={guess.scorePoint.y} r={1.2} fill="#f43f5e" opacity={0.9} />
           <circle cx={guess.scorePoint.x} cy={guess.scorePoint.y} r={2.2} fill="none" stroke="#f43f5e" strokeWidth="0.35" opacity={0.5} />
         </g>
       )}
-      {/* correct marker + line */}
       {revealed && currentTown && guess && (
         <g>
           <line x1={guess.scorePoint.x} y1={guess.scorePoint.y} x2={currentTown.centroid.x} y2={currentTown.centroid.y}
@@ -332,7 +324,6 @@ export default function CTGame() {
           <circle cx={currentTown.centroid.x} cy={currentTown.centroid.y} r={1.8} fill="none" stroke="#1e3a5f" strokeWidth="0.3" opacity={0.4} />
         </g>
       )}
-      {/* Town name labels shown after game over */}
       {gameOver && history.map((h, i) => {
         const t = towns.find(t => normTownName(t.name) === normTownName(h.town));
         if (!t) return null;
@@ -341,9 +332,7 @@ export default function CTGame() {
         const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
         return (
           <g key={i}>
-            {/* dot marker */}
             <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
-            {/* label background */}
             <rect
               x={t.centroid.x + 1.2}
               y={t.centroid.y - 1.8}
@@ -353,7 +342,6 @@ export default function CTGame() {
               fill={bgColor}
               opacity={0.92}
             />
-            {/* label text */}
             <text
               x={t.centroid.x + 1.8}
               y={t.centroid.y - 0.5}
@@ -470,7 +458,7 @@ export default function CTGame() {
           ) : MapSVG}
         </div>
 
-        {/* Score strip — two separate boxes */}
+        {/* Score strip */}
         <div style={{ margin: "6px 12px 0", display: "flex", gap: 6 }}>
           <div style={{
             flex: 1, background: "#fff", borderRadius: 8,
@@ -480,20 +468,17 @@ export default function CTGame() {
             <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
             <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
               className={scoreAnim ? "score-pop" : ""}>
-              {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+              {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
             </span>
           </div>
           {!gameOver ? (
             <div style={{
               flex: "0 0 80px", background: "#fff", borderRadius: 8,
-              border: "1px solid #dce8f5",
-              padding: "7px 10px",
+              border: "1px solid #dce8f5", padding: "7px 10px",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
               <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>Time</span>
-              <span style={{
-                fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#0f2d5e"
-              }}>{fmtTime(elapsed)}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#0f2d5e" }}>{fmtTime(elapsed)}</span>
             </div>
           ) : (
             <div style={{
@@ -502,7 +487,7 @@ export default function CTGame() {
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
-              <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#0f2d5e", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
           )}
         </div>
@@ -532,7 +517,7 @@ export default function CTGame() {
           )}
         </div>
 
-        {/* How to Play — only before game starts on mobile */}
+        {/* How to Play */}
         {!started && (
           <div style={{
             margin: "6px 12px 10px",
@@ -553,12 +538,11 @@ export default function CTGame() {
           </div>
         )}
 
-        {/* Round History — compact table */}
+        {/* Round History */}
         {history.length > 0 && (
           <div style={{
             margin: "6px 12px 10px",
-            background: "#fff",
-            borderRadius: 10, border: "1px solid #dce8f5",
+            background: "#fff", borderRadius: 10, border: "1px solid #dce8f5",
             overflow: "hidden"
           }}>
             <div style={{
@@ -593,15 +577,16 @@ export default function CTGame() {
               }}>
                 <div>
                   <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
-                  <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#0f2d5e", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
                 </div>
                 <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>
-                  {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+                  {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
                 </span>
               </div>
             )}
           </div>
         )}
+
       </div>
     );
   }
@@ -627,7 +612,6 @@ export default function CTGame() {
 
       <div style={{ maxWidth: 1140, margin: "0 auto" }}>
 
-        {/* ── Desktop Header ── */}
         <div style={{
           display: "flex", alignItems: "flex-end", justifyContent: "space-between",
           marginBottom: 14, borderBottom: "1px solid #d1daea", paddingBottom: 12
@@ -666,18 +650,13 @@ export default function CTGame() {
           </div>
         </div>
 
-        {/* ── Body: map + sidebar ── */}
         <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
 
-          {/* LEFT: Map column */}
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
 
-            {/* Prompt bar */}
             <div style={{
               borderRadius: "10px 10px 0 0",
-              background: started && !gameOver
-                ? (revealed ? "#ecfdf5" : "#eff6ff")
-                : "#fff",
+              background: started && !gameOver ? (revealed ? "#ecfdf5" : "#eff6ff") : "#fff",
               border: `1px solid ${started && !gameOver ? (revealed ? "#6ee7b7" : "#93c5fd") : "#d1daea"}`,
               borderBottom: "none",
               padding: "10px 16px",
@@ -710,12 +689,10 @@ export default function CTGame() {
               )}
             </div>
 
-            {/* Progress bar */}
             <div style={{ height: 3, background: "#dce8f5" }}>
               <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", transition: "width 0.4s ease" }} />
             </div>
 
-            {/* Map */}
             <div style={{
               background: "linear-gradient(135deg, #e8f0fb 0%, #dae6f5 100%)",
               border: "1px solid #c8d9ee",
@@ -728,7 +705,6 @@ export default function CTGame() {
               ) : MapSVG}
             </div>
 
-            {/* Next button strip */}
             <div style={{
               borderRadius: "0 0 10px 10px",
               border: "1px solid #c8d9ee",
@@ -753,12 +729,9 @@ export default function CTGame() {
             </div>
           </div>
 
-          {/* RIGHT: Sidebar — compact, fits entire game in one viewport */}
           <div style={{ width: 268, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
 
-            {/* Score + Final Result row — side by side when game over, or just score */}
             {!gameOver ? (
-              /* Two boxes: Score | Timer */
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ ...dPanel, flex: 1 }}>
                   <div style={dPanelHeader}>Score</div>
@@ -781,19 +754,12 @@ export default function CTGame() {
                 <div style={{ ...dPanel, flex: "0 0 90px", textAlign: "center" }}>
                   <div style={dPanelHeader}>Time</div>
                   <div style={{ padding: "10px 8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{
-                      fontSize: 28, fontWeight: 800, lineHeight: 1, fontFamily: "monospace",
-                      color: "#0f2d5e"
-                    }}>{fmtTime(elapsed)}</span>
+                    <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, fontFamily: "monospace", color: "#0f2d5e" }}>{fmtTime(elapsed)}</span>
                   </div>
                 </div>
               </div>
             ) : (
-              /* Final Result (game over) — compact horizontal card */
-              <div style={{
-                ...dPanel, border: "1px solid #c7d2fe",
-                background: "#eef2ff", animation: "fadeSlideUp 0.4s ease both"
-              }}>
+              <div style={{ ...dPanel, border: "1px solid #c7d2fe", background: "#eef2ff", animation: "fadeSlideUp 0.4s ease both" }}>
                 <div style={{ ...dPanelHeader, background: "#e0e7ff", borderBottom: "1px solid #c7d2fe", color: "#4338ca" }}>
                   Final Result
                 </div>
@@ -815,7 +781,6 @@ export default function CTGame() {
               </div>
             )}
 
-            {/* How to Play — only show when game hasn't started or is mid-game with no history */}
             {(!started || (started && !gameOver && history.length === 0)) && (
               <div style={dPanel}>
                 <div style={dPanelHeader}>How to Play</div>
@@ -828,7 +793,6 @@ export default function CTGame() {
               </div>
             )}
 
-            {/* Round History — no maxHeight, all 10 rows always visible */}
             {history.length > 0 && (
               <div style={dPanel}>
                 <div style={dPanelHeader}>Round History</div>
