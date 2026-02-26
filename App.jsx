@@ -273,10 +273,11 @@ export default function CTGame() {
     setGuess(null); setRevealed(false); setRoundScore(0);
   };
 
-  // ── Share handler — draws score card directly on Canvas (no external libs) ────
-  const handleShare = async () => {
+  // ── Share handler — synchronous canvas draw, no async/gesture issues ────────
+  const handleShare = () => {
     if (sharing) return;
     setSharing(true);
+
     try {
       const ri = rating(totalScore);
       const W = 640, ROW_H = 36, HEADER_H = 160, FOOTER_H = 48;
@@ -285,138 +286,123 @@ export default function CTGame() {
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext("2d");
 
-      // ── background ──
+      function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      // background
       ctx.fillStyle = "#f0f4fa";
       ctx.fillRect(0, 0, W, H);
 
-      // ── dark navy header band ──
+      // dark navy header band
       ctx.fillStyle = "#0f2d5e";
       ctx.fillRect(0, 0, W, 72);
-
-      // ── title ──
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 26px Georgia, serif";
-      ctx.fillText("CT 169 Towns Challenge", 28, 42);
+      ctx.fillText("CT 169 Towns Challenge", 28, 44);
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.font = "13px system-ui, sans-serif";
-      ctx.fillText("BY ADAM OSMOND", 30, 62);
+      ctx.font = "13px Arial, sans-serif";
+      ctx.fillText("BY ADAM OSMOND", 30, 63);
 
-      // ── score card ──
+      // score card
       const cardY = 82, cardH = 68;
       ctx.fillStyle = "#ffffff";
-      roundRect(ctx, 20, cardY, W - 40, cardH, 10);
+      roundRect(20, cardY, W - 40, cardH, 10);
       ctx.fill();
 
-      // score number
       ctx.fillStyle = "#0f2d5e";
       ctx.font = "bold 48px Georgia, serif";
-      ctx.fillText(String(totalScore), 36, cardY + 50);
+      const scoreStr = String(totalScore);
+      ctx.fillText(scoreStr, 36, cardY + 52);
+      const scoreW = ctx.measureText(scoreStr).width;
       ctx.fillStyle = "#64748b";
-      ctx.font = "18px system-ui, sans-serif";
-      ctx.fillText(`/ ${roundsToPlay * 100}`, 36 + ctx.measureText(String(totalScore)).width + 6, cardY + 50);
+      ctx.font = "18px Arial, sans-serif";
+      ctx.fillText(`/ ${roundsToPlay * 100}`, 36 + scoreW + 6, cardY + 52);
 
-      // rating badge
       ctx.fillStyle = ri.color;
-      ctx.font = "bold 18px system-ui, sans-serif";
-      const ratingW = ctx.measureText(ri.label).width;
-      ctx.fillText(ri.label, W - 40 - ratingW, cardY + 32);
-
-      // time
+      ctx.font = "bold 18px Arial, sans-serif";
+      const ratingTxt = ri.label;
+      ctx.fillText(ratingTxt, W - 40 - ctx.measureText(ratingTxt).width, cardY + 32);
       ctx.fillStyle = "#475569";
-      ctx.font = "14px system-ui, sans-serif";
-      ctx.fillText(`⏱  ${fmtTime(timeTaken)}`, W - 40 - ctx.measureText(`⏱  ${fmtTime(timeTaken)}`).width, cardY + 54);
+      ctx.font = "14px Arial, sans-serif";
+      const timeTxt = `Time: ${fmtTime(timeTaken)}`;
+      ctx.fillText(timeTxt, W - 40 - ctx.measureText(timeTxt).width, cardY + 54);
 
-      // ── table header ──
+      // table header
       const tableY = cardY + cardH + 12;
       ctx.fillStyle = "#f4f8fd";
       ctx.fillRect(20, tableY, W - 40, 28);
+      ctx.strokeStyle = "#dce8f5";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(20, tableY, W - 40, 28);
       ctx.fillStyle = "#5a7a9e";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.fillText("TOWN", 36, tableY + 18);
-      ctx.fillText("CLICKED", 240, tableY + 18);
-      ctx.fillText("PTS", W - 60, tableY + 18);
+      ctx.font = "bold 11px Arial, sans-serif";
+      ctx.fillText("TOWN", 36, tableY + 19);
+      ctx.fillText("CLICKED", 240, tableY + 19);
+      ctx.fillText("PTS", W - 55, tableY + 19);
 
-      // ── table rows ──
+      // rows
       history.forEach((h, i) => {
         const y = tableY + 28 + i * ROW_H;
         ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#f8fafc";
         ctx.fillRect(20, y, W - 40, ROW_H);
-
         ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 14px system-ui, sans-serif";
-        ctx.fillText(h.town, 36, y + 23);
-
+        ctx.font = "bold 14px Arial, sans-serif";
+        ctx.fillText(h.town, 36, y + 24);
         ctx.fillStyle = h.town === h.guessed ? "#059669" : "#64748b";
-        ctx.font = "14px system-ui, sans-serif";
-        ctx.fillText(h.guessed, 240, y + 23);
-
+        ctx.font = "14px Arial, sans-serif";
+        ctx.fillText(h.guessed, 240, y + 24);
         const sc = h.score;
         ctx.fillStyle = sc >= 80 ? "#059669" : sc >= 60 ? "#d97706" : sc >= 40 ? "#ea580c" : "#dc2626";
-        ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.font = "bold 14px Arial, sans-serif";
         const ptsTxt = String(sc);
-        ctx.fillText(ptsTxt, W - 40 - ctx.measureText(ptsTxt).width, y + 23);
+        ctx.fillText(ptsTxt, W - 40 - ctx.measureText(ptsTxt).width, y + 24);
       });
 
-      // ── divider + total row ──
+      // total row
       const totalY = tableY + 28 + history.length * ROW_H;
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(20, totalY, W - 40, 38);
       ctx.fillStyle = "#e2e8f0";
       ctx.fillRect(20, totalY, W - 40, 1);
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(20, totalY + 1, W - 40, 38);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.fillText("FINAL", 36, totalY + 24);
+      ctx.fillStyle = "#5a7a9e";
+      ctx.font = "bold 11px Arial, sans-serif";
+      ctx.fillText("FINAL SCORE", 36, totalY + 24);
       ctx.fillStyle = "#0f2d5e";
       ctx.font = "bold 20px Georgia, serif";
-      const finalTxt = `${totalScore}/${roundsToPlay * 100}`;
+      const finalTxt = `${totalScore} / ${roundsToPlay * 100}`;
       ctx.fillText(finalTxt, W - 40 - ctx.measureText(finalTxt).width, totalY + 26);
 
-      // ── footer promo ──
-      const footerY = totalY + 40;
+      // footer
+      const footerY = totalY + 39;
       ctx.fillStyle = "#0f2d5e";
       ctx.fillRect(0, footerY, W, H - footerY);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 15px system-ui, sans-serif";
-      const promoTxt = "🗺️  Can you beat me? Play at run169towns.org";
+      ctx.font = "bold 15px Arial, sans-serif";
+      const promoTxt = "Can you beat me? Play at run169towns.org";
       ctx.fillText(promoTxt, (W - ctx.measureText(promoTxt).width) / 2, footerY + 30);
 
-      // ── share or download ──
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], "ct169-score.png", { type: "image/png" });
-        try {
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: "CT 169 Towns Challenge",
-              text: `I scored ${totalScore}/1000 (${ri.label}) on the CT 169 Towns Challenge! Can you beat me? 🗺️`,
-              files: [file],
-            });
-          } else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = "ct169-score.png"; a.click();
-            URL.revokeObjectURL(url);
-          }
-        } catch (err) {
-          // user cancelled share — not an error
-        }
-        setSharing(false);
-      }, "image/png");
+      // download / share
+      const dataURL = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataURL;
+      a.download = "ct169-score.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
     } catch (e) {
-      console.error("Share failed:", e);
+      alert("Share failed: " + e.message);
+    } finally {
       setSharing(false);
     }
   };
-
-  // helper: rounded rect path
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
 
   const ratingInfo = rating(totalScore);
   const lastH = history[history.length - 1];
