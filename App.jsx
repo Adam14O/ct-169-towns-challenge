@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Play, MapPin, ChevronRight, Trophy, Target, AlertCircle, CheckCircle2, Share2 } from "lucide-react";
+import { RotateCcw, Play, MapPin, ChevronRight, Trophy, Target, AlertCircle, CheckCircle2 } from "lucide-react";
 
 // ─── Google Fonts injection ───────────────────────────────────────────────────
 const injectFonts = () => {
@@ -175,10 +175,6 @@ export default function CTGame() {
   const [scoreAnim, setScoreAnim] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
-  // ── Share state ──────────────────────────────────────────────────────────────
-  const [sharing, setSharing] = useState(false);
-  const shareRef = useRef(null);
-  const mapSvgRef = useRef(null);
   const remainingPool = useRef([]);
 
   const roundsToPlay = 10;
@@ -230,6 +226,7 @@ export default function CTGame() {
 
   const startGame = () => {
     if (towns.length < 169) return;
+    // ── No-repeat pool: refill when fewer than 10 towns remain ──────────────
     if (remainingPool.current.length < roundsToPlay) {
       const all = towns.map((_, i) => i);
       for (let i = all.length - 1; i > 0; i--) {
@@ -274,176 +271,12 @@ export default function CTGame() {
     setGuess(null); setRevealed(false); setRoundScore(0);
   };
 
-  // ── Share handler — includes full map + results ───────────────────────────────
-  const handleShare = () => {
-    if (sharing) return;
-    setSharing(true);
-
-    try {
-      const ri = rating(totalScore);
-      const W = 640;
-      const MAP_H = 240; // map section height
-      const HEADER_H = 72;
-      const SCORE_H = 68;
-      const ROW_H = 36;
-      const TABLE_HEAD_H = 28;
-      const TOTAL_H = 38;
-      const FOOTER_H = 48;
-      const H = HEADER_H + MAP_H + SCORE_H + TABLE_HEAD_H + history.length * ROW_H + TOTAL_H + FOOTER_H;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d");
-
-      const drawEverything = (mapImg) => {
-        // background
-        ctx.fillStyle = "#f0f4fa";
-        ctx.fillRect(0, 0, W, H);
-
-        // ── header ──
-        ctx.fillStyle = "#0f2d5e";
-        ctx.fillRect(0, 0, W, HEADER_H);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 26px Georgia";
-        ctx.fillText("CT 169 Towns Challenge", 28, 44);
-        ctx.fillStyle = "rgba(255,255,255,0.55)";
-        ctx.font = "13px Arial";
-        ctx.fillText("BY ADAM OSMOND", 30, 63);
-
-        // ── map ──
-        const mapPad = 10;
-        ctx.fillStyle = "#e8f0fb";
-        ctx.fillRect(mapPad, HEADER_H + mapPad, W - mapPad * 2, MAP_H - mapPad * 2);
-        if (mapImg) {
-          // draw SVG map centered, preserving aspect ratio (viewBox 100x60)
-          const aspect = VB_W / VB_H;
-          const availW = W - mapPad * 2;
-          const availH = MAP_H - mapPad * 2;
-          let drawW = availW, drawH = availW / aspect;
-          if (drawH > availH) { drawH = availH; drawW = availH * aspect; }
-          const dx = mapPad + (availW - drawW) / 2;
-          const dy = HEADER_H + mapPad + (availH - drawH) / 2;
-          ctx.drawImage(mapImg, dx, dy, drawW, drawH);
-        }
-
-        // ── score card ──
-        const cardY = HEADER_H + MAP_H;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(20, cardY + 8, W - 40, SCORE_H);
-        ctx.fillStyle = "#0f2d5e";
-        ctx.font = "bold 48px Georgia";
-        const scoreStr = String(totalScore);
-        ctx.fillText(scoreStr, 36, cardY + 56);
-        ctx.fillStyle = "#64748b";
-        ctx.font = "18px Arial";
-        ctx.fillText("/ " + (roundsToPlay * 100), 36 + ctx.measureText(scoreStr).width + 8, cardY + 56);
-        ctx.fillStyle = ri.color;
-        ctx.font = "bold 18px Arial";
-        ctx.fillText(ri.label, W - 40 - ctx.measureText(ri.label).width, cardY + 30);
-        ctx.fillStyle = "#475569";
-        ctx.font = "14px Arial";
-        const timeTxt = "Time: " + fmtTime(timeTaken);
-        ctx.fillText(timeTxt, W - 40 - ctx.measureText(timeTxt).width, cardY + 52);
-
-        // ── table header ──
-        const tableY = cardY + SCORE_H + 4;
-        ctx.fillStyle = "#f4f8fd";
-        ctx.fillRect(20, tableY, W - 40, TABLE_HEAD_H);
-        ctx.fillStyle = "#5a7a9e";
-        ctx.font = "bold 11px Arial";
-        ctx.fillText("TOWN", 36, tableY + 19);
-        ctx.fillText("CLICKED", 240, tableY + 19);
-        ctx.fillText("PTS", W - 55, tableY + 19);
-
-        // ── rows ──
-        history.forEach((h, i) => {
-          const y = tableY + TABLE_HEAD_H + i * ROW_H;
-          ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#f8fafc";
-          ctx.fillRect(20, y, W - 40, ROW_H);
-          ctx.fillStyle = "#1e293b";
-          ctx.font = "bold 14px Arial";
-          ctx.fillText(h.town, 36, y + 24);
-          ctx.fillStyle = h.town === h.guessed ? "#059669" : "#64748b";
-          ctx.font = "14px Arial";
-          ctx.fillText(h.guessed, 240, y + 24);
-          const sc = h.score;
-          ctx.fillStyle = sc >= 80 ? "#059669" : sc >= 60 ? "#d97706" : sc >= 40 ? "#ea580c" : "#dc2626";
-          ctx.font = "bold 14px Arial";
-          const ptsTxt = String(sc);
-          ctx.fillText(ptsTxt, W - 40 - ctx.measureText(ptsTxt).width, y + 24);
-        });
-
-        // ── total row ──
-        const totalY = tableY + TABLE_HEAD_H + history.length * ROW_H;
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(20, totalY, W - 40, TOTAL_H);
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(20, totalY, W - 40, 1);
-        ctx.fillStyle = "#5a7a9e";
-        ctx.font = "bold 11px Arial";
-        ctx.fillText("FINAL SCORE", 36, totalY + 24);
-        ctx.fillStyle = "#0f2d5e";
-        ctx.font = "bold 20px Georgia";
-        const finalTxt = totalScore + " / " + (roundsToPlay * 100);
-        ctx.fillText(finalTxt, W - 40 - ctx.measureText(finalTxt).width, totalY + 26);
-
-        // ── footer ──
-        const footerY = totalY + TOTAL_H;
-        ctx.fillStyle = "#0f2d5e";
-        ctx.fillRect(0, footerY, W, H - footerY);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 15px Arial";
-        const promoTxt = "Can you beat me? Play at run169towns.org";
-        ctx.fillText(promoTxt, (W - ctx.measureText(promoTxt).width) / 2, footerY + 30);
-
-        // ── open in new tab ──
-        const dataURL = canvas.toDataURL("image/png");
-        const win = window.open();
-        if (win) {
-          win.document.write(
-            '<html><head><title>CT 169 Towns - My Score</title></head><body style="margin:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;padding:20px">' +
-            '<img src="' + dataURL + '" style="max-width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4)" />' +
-            '<p style="font-family:Arial;color:#94a3b8;margin-top:16px;text-align:center">📱 Press and hold (mobile) or right-click (desktop) the image to save, then share!</p>' +
-            '</body></html>'
-          );
-          win.document.close();
-        } else {
-          const a = document.createElement("a");
-          a.href = dataURL;
-          a.download = "ct169-score.png";
-          a.click();
-        }
-        setSharing(false);
-      };
-
-      // Serialize the live SVG map and draw it as an image
-      if (mapSvgRef.current) {
-        const svgEl = mapSvgRef.current;
-        const svgData = new XMLSerializer().serializeToString(svgEl);
-        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(svgBlob);
-        const img = new Image();
-        img.onload = () => { drawEverything(img); URL.revokeObjectURL(url); };
-        img.onerror = () => { drawEverything(null); URL.revokeObjectURL(url); };
-        img.src = url;
-      } else {
-        drawEverything(null);
-      }
-
-    } catch (e) {
-      alert("Error: " + e.message);
-      setSharing(false);
-    }
-  };
-
   const ratingInfo = rating(totalScore);
   const lastH = history[history.length - 1];
 
   // ── Shared map SVG ──────────────────────────────────────────────────────────
   const MapSVG = (
     <svg
-      ref={mapSvgRef}
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ width: "100%", display: "block", cursor: currentTown && !revealed ? "crosshair" : "default" }}
@@ -499,6 +332,39 @@ export default function CTGame() {
           <circle cx={currentTown.centroid.x} cy={currentTown.centroid.y} r={1.8} fill="none" stroke="#1e3a5f" strokeWidth="0.3" opacity={0.4} />
         </g>
       )}
+      {/* Town name labels shown after game over */}
+      {gameOver && history.map((h, i) => {
+        const t = towns.find(t => normTownName(t.name) === normTownName(h.town));
+        if (!t) return null;
+        const score = h.score;
+        const labelColor = score >= 80 ? "#065f46" : score >= 50 ? "#92400e" : "#9f1239";
+        const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
+        return (
+          <g key={i}>
+            {/* dot marker */}
+            <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
+            {/* label background */}
+            <rect
+              x={t.centroid.x + 1.2}
+              y={t.centroid.y - 1.8}
+              width={t.name.length * 0.82 + 1.0}
+              height={2.2}
+              rx={0.4}
+              fill={bgColor}
+              opacity={0.92}
+            />
+            {/* label text */}
+            <text
+              x={t.centroid.x + 1.8}
+              y={t.centroid.y - 0.5}
+              fontSize="1.4"
+              fontWeight="700"
+              fill={labelColor}
+              fontFamily="DM Sans, system-ui, sans-serif"
+            >{t.name}</text>
+          </g>
+        );
+      })}
       <text x="98.5" y="59" textAnchor="end" fontSize="1.6" fill="#a0b4cc" fontFamily="DM Sans, sans-serif">Game by Adam Osmond</text>
     </svg>
   );
@@ -570,7 +436,7 @@ export default function CTGame() {
             <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>
               {revealed
                 ? <><span style={{ color: "#047857", fontWeight: 700 }}>{roundScore} pts</span> · Clicked: <span style={{ color: "#475569" }}>{lastH?.guessed}</span></>
-                : <>Find <span style={{ color: "#2563eb", fontWeight: 700, textDecoration: "underline" }}>{currentTown?.name}</span></>
+                : <>Find <span style={{ color: "#2563eb", fontWeight: 800, textDecoration: "underline", fontSize: 17 }}>{currentTown?.name}</span></>
               }
             </span>
           </div>
@@ -583,125 +449,63 @@ export default function CTGame() {
           </div>
         )}
 
-        {/* ── Shareable card (ref no longer needed — canvas draws directly) ── */}
-        <div style={{ background: "#f0f4fa" }}>
+        {/* MAP */}
+        <div style={{
+          margin: "6px 12px 0",
+          borderRadius: 10,
+          overflow: "hidden",
+          border: "1px solid #c8d9ee",
+          background: "linear-gradient(135deg, #e8f0fb 0%, #dce8f7 100%)",
+          boxShadow: "0 2px 8px rgba(15,45,94,0.08)",
+          lineHeight: 0
+        }}>
+          {mapState.loading ? (
+            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
+              Loading map…
+            </div>
+          ) : mapState.error ? (
+            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>
+              {mapState.error}
+            </div>
+          ) : MapSVG}
+        </div>
 
-          {/* MAP */}
+        {/* Score strip — two separate boxes */}
+        <div style={{ margin: "6px 12px 0", display: "flex", gap: 6 }}>
           <div style={{
-            margin: "6px 12px 0",
-            borderRadius: 10,
-            overflow: "hidden",
-            border: "1px solid #c8d9ee",
-            background: "linear-gradient(135deg, #e8f0fb 0%, #dce8f7 100%)",
-            boxShadow: "0 2px 8px rgba(15,45,94,0.08)",
-            lineHeight: 0
+            flex: 1, background: "#fff", borderRadius: 8,
+            border: "1px solid #dce8f5", padding: "7px 12px",
+            display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-            {mapState.loading ? (
-              <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
-                Loading map…
-              </div>
-            ) : mapState.error ? (
-              <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>
-                {mapState.error}
-              </div>
-            ) : MapSVG}
+            <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
+              className={scoreAnim ? "score-pop" : ""}>
+              {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+            </span>
           </div>
-
-          {/* Score strip — two separate boxes */}
-          <div style={{ margin: "6px 12px 0", display: "flex", gap: 6 }}>
+          {!gameOver ? (
+            <div style={{
+              flex: "0 0 80px", background: "#fff", borderRadius: 8,
+              border: "1px solid #dce8f5",
+              padding: "7px 10px",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
+            }}>
+              <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>Time</span>
+              <span style={{
+                fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#0f2d5e"
+              }}>{fmtTime(elapsed)}</span>
+            </div>
+          ) : (
             <div style={{
               flex: 1, background: "#fff", borderRadius: 8,
               border: "1px solid #dce8f5", padding: "7px 12px",
-              display: "flex", justifyContent: "space-between", alignItems: "center"
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
             }}>
-              <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
-                className={scoreAnim ? "score-pop" : ""}>
-                {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
-              </span>
-            </div>
-            {!gameOver ? (
-              <div style={{
-                flex: "0 0 80px", background: "#fff", borderRadius: 8,
-                border: "1px solid #dce8f5",
-                padding: "7px 10px",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
-              }}>
-                <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>Time</span>
-                <span style={{
-                  fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#0f2d5e"
-                }}>{fmtTime(elapsed)}</span>
-              </div>
-            ) : (
-              <div style={{
-                flex: 1, background: "#fff", borderRadius: 8,
-                border: "1px solid #dce8f5", padding: "7px 12px",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
-                <span style={{ fontSize: 10, color: "#0f2d5e", fontWeight: 800, marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Round History — compact table */}
-          {history.length > 0 && (
-            <div style={{
-              margin: "6px 12px 0",
-              background: "#fff",
-              borderRadius: 10, border: "1px solid #dce8f5",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
-                fontSize: 9, fontWeight: 700, color: "#5a7a9e",
-                textTransform: "uppercase", letterSpacing: "0.1em", display: "flex"
-              }}>
-                <span style={{ flex: "0 0 38%" }}>Town</span>
-                <span style={{ flex: "0 0 40%" }}>Clicked</span>
-                <span style={{ flex: "0 0 22%", textAlign: "right" }}>Pts</span>
-              </div>
-              {history.map((h, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", padding: "3px 12px",
-                  borderBottom: i < history.length - 1 ? "1px solid #f1f5f9" : "none",
-                  animation: `fadeSlideUp 0.3s ease ${i * 0.04}s both`
-                }}>
-                  <span style={{ flex: "0 0 38%", fontSize: 12, color: "#1e293b", fontWeight: 600 }}>{h.town}</span>
-                  <span style={{ flex: "0 0 40%", fontSize: 11, color: h.town === h.guessed ? "#059669" : "#64748b" }}>
-                    {h.guessed}
-                  </span>
-                  <span style={{ flex: "0 0 22%", textAlign: "right", fontSize: 13, fontWeight: 700, color: scoreColor(h.score) }}>
-                    {h.score}
-                  </span>
-                </div>
-              ))}
-              {gameOver && (
-                <div style={{
-                  padding: "5px 12px", borderTop: "1px solid #e2e8f0",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  background: "#f8fafc"
-                }}>
-                  <div>
-                    <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
-                    <span style={{ fontSize: 10, color: "#0f2d5e", fontWeight: 800, marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
-                  </div>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>
-                    {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
-                  </span>
-                </div>
-              )}
+              <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
+              <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
           )}
-
-          {/* Promo footer — shows in screenshot */}
-          {gameOver && (
-            <div style={{ margin: "4px 12px 6px", textAlign: "center", fontSize: 10, color: "#6b7f9e", fontWeight: 600, letterSpacing: "0.04em" }}>
-              🗺️ Play at <span style={{ color: "#2563eb" }}>run169towns.org</span>
-            </div>
-          )}
-
-        </div>{/* end shareRef */}
+        </div>
 
         {/* Action button */}
         <div style={{ margin: "6px 12px 0" }}>
@@ -722,17 +526,9 @@ export default function CTGame() {
             </div>
           )}
           {gameOver && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <button onClick={startGame} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #065f46, #059669)" }}>
-                <RotateCcw size={14} /> Play Again
-              </button>
-              <button onClick={handleShare} disabled={sharing} style={{ ...mBtnLarge, width: "100%", background: sharing ? "#94a3b8" : "linear-gradient(135deg, #1d4ed8, #2563eb)" }}>
-                {sharing
-                  ? <><span style={{ fontSize: 13 }}>⏳</span> Generating…</>
-                  : <><Share2 size={14} /> Share My Score</>
-                }
-              </button>
-            </div>
+            <button onClick={startGame} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #065f46, #059669)" }}>
+              <RotateCcw size={14} /> Play Again
+            </button>
           )}
         </div>
 
@@ -757,6 +553,55 @@ export default function CTGame() {
           </div>
         )}
 
+        {/* Round History — compact table */}
+        {history.length > 0 && (
+          <div style={{
+            margin: "6px 12px 10px",
+            background: "#fff",
+            borderRadius: 10, border: "1px solid #dce8f5",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
+              fontSize: 9, fontWeight: 700, color: "#5a7a9e",
+              textTransform: "uppercase", letterSpacing: "0.1em", display: "flex"
+            }}>
+              <span style={{ flex: "0 0 38%" }}>Town</span>
+              <span style={{ flex: "0 0 40%" }}>Clicked</span>
+              <span style={{ flex: "0 0 22%", textAlign: "right" }}>Pts</span>
+            </div>
+            {history.map((h, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", padding: "3px 12px",
+                borderBottom: i < history.length - 1 ? "1px solid #f1f5f9" : "none",
+                animation: `fadeSlideUp 0.3s ease ${i * 0.04}s both`
+              }}>
+                <span style={{ flex: "0 0 38%", fontSize: 12, color: "#1e293b", fontWeight: 600 }}>{h.town}</span>
+                <span style={{ flex: "0 0 40%", fontSize: 11, color: h.town === h.guessed ? "#059669" : "#64748b" }}>
+                  {h.guessed}
+                </span>
+                <span style={{ flex: "0 0 22%", textAlign: "right", fontSize: 13, fontWeight: 700, color: scoreColor(h.score) }}>
+                  {h.score}
+                </span>
+              </div>
+            ))}
+            {gameOver && (
+              <div style={{
+                padding: "5px 12px", borderTop: "1px solid #e2e8f0",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                background: "#f8fafc"
+              }}>
+                <div>
+                  <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
+                  <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
+                </div>
+                <span style={{ fontSize: 17, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}>
+                  {totalScore}<span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>/{roundsToPlay * 100}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -822,7 +667,7 @@ export default function CTGame() {
         </div>
 
         {/* ── Body: map + sidebar ── */}
-        <div style={{ display: "flex", gap: 18, alignItems: "flex-start", background: "#f0f4fa" }}>
+        <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
 
           {/* LEFT: Map column */}
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
@@ -962,20 +807,10 @@ export default function CTGame() {
                     <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
                       ⏱ Finished in <span style={{ fontWeight: 700, color: "#1e3a5f" }}>{fmtTime(timeTaken)}</span>
                     </div>
-                    <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #4f46e5, #6366f1)", marginBottom: 6 }}>
+                    <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
                       <RotateCcw size={12} style={{ marginRight: 4 }} />Play Again
                     </button>
-                    <button className="next-btn" onClick={handleShare} disabled={sharing} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: sharing ? "#94a3b8" : "linear-gradient(135deg, #0369a1, #0284c7)" }}>
-                      {sharing
-                        ? "⏳ Generating…"
-                        : <><Share2 size={12} style={{ marginRight: 4 }} />Share Score</>
-                      }
-                    </button>
                   </div>
-                </div>
-                {/* Promo footer — shows in screenshot */}
-                <div style={{ padding: "6px 14px 8px", textAlign: "center", fontSize: 10, color: "#6b7f9e", fontWeight: 600, letterSpacing: "0.04em", borderTop: "1px solid #c7d2fe" }}>
-                  🗺️ Play at <span style={{ color: "#2563eb" }}>run169towns.org</span>
                 </div>
               </div>
             )}
