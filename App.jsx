@@ -545,7 +545,7 @@ export default function CTGame() {
               textTransform: "uppercase", letterSpacing: "0.1em"
             }}>How to Play</div>
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
-              A Connecticut town name appears at the top. Tap where you think it is on the map. Score 0–100 per town based on how close you are — 100 for a direct hit!
+              A Connecticut town name appears at the top. Tap where you think it is on the map. Correct town = 100 pts · Bordering town = 80 pts · Anything else = 0 pts.
               <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                 {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
               </div>
@@ -800,7 +800,7 @@ export default function CTGame() {
               <div style={dPanel}>
                 <div style={dPanelHeader}>How to Play</div>
                 <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
-                  A CT town name appears above. Click where you think it is. Score 0–100 based on proximity.
+                  A CT town name appears above. Click where you think it is. Correct town = 100 pts · Bordering town = 80 pts · Anything else = 0 pts.
                   <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                     {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
                   </div>
