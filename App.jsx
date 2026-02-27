@@ -65,9 +65,22 @@ function distance(a, b) {
   const dx = a.x - b.x, dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
-function scoreFromDistance(d) {
-  const maxD = 70;
-  return Math.round(100 * Math.pow(1 - Math.min(maxD, d) / maxD, 1.6));
+function areTownsNeighbors(townA, townB) {
+  const eps = 0.05;
+  for (const polyA of townA.polygons) {
+    for (const ringA of polyA) {
+      for (const [ax, ay] of ringA) {
+        for (const polyB of townB.polygons) {
+          for (const ringB of polyB) {
+            for (const [bx, by] of ringB) {
+              if (Math.abs(ax - bx) < eps && Math.abs(ay - by) < eps) return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 function rating(total) {
   if (total >= 1000) return { label: "Human GPS", color: "#b45309" };
@@ -249,7 +262,9 @@ export default function CTGame() {
     const clickedTown = findClickedTown(x, y, towns);
     const guessedPoint = clickedTown ? clickedTown.centroid : { x, y };
     const d = distance(guessedPoint, currentTown.centroid);
-    const s = scoreFromDistance(d);
+    const s = clickedTown && clickedTown.key === currentTown.key ? 100
+            : clickedTown && areTownsNeighbors(currentTown, clickedTown) ? 80
+            : 0;
     setGuess({ x, y, clickedTownName: clickedTown?.name || null, scorePoint: guessedPoint });
     setRoundScore(s);
     setRevealed(true);
