@@ -135,6 +135,11 @@ function normalizeFeaturesToSvg(geojson) {
     return { id: idx + 1, name: String(rawName), key: normTownName(rawName), centroid, polygons, paths };
   });
 }
+function areTownsSecondNeighbors(townA, townB, towns) {
+  return towns.some(mid => mid.key !== townA.key && mid.key !== townB.key &&
+    areTownsNeighbors(townA, mid) && areTownsNeighbors(mid, townB));
+}
+
 function findClickedTown(x, y, towns) {
   for (const t of towns) {
     for (const poly of t.polygons || []) {
@@ -264,6 +269,7 @@ export default function CTGame() {
     const d = distance(guessedPoint, currentTown.centroid);
     const s = clickedTown && clickedTown.key === currentTown.key ? 100
             : clickedTown && areTownsNeighbors(currentTown, clickedTown) ? 80
+            : clickedTown && areTownsSecondNeighbors(currentTown, clickedTown, towns) ? 70
             : 0;
     setGuess({ x, y, clickedTownName: clickedTown?.name || null, scorePoint: guessedPoint });
     setRoundScore(s);
@@ -545,7 +551,7 @@ export default function CTGame() {
               textTransform: "uppercase", letterSpacing: "0.1em"
             }}>How to Play</div>
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
-              A Connecticut town name appears at the top. Tap where you think it is on the map. Correct town = 100 pts · Bordering town = 80 pts · Anything else = 0 pts.
+              A Connecticut town name appears at the top. Tap where you think it is on the map. Correct town = 100 pts · Bordering town = 80 pts · 2nd-degree neighbor = 70 pts · Anything else = 0 pts.
               <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                 {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
               </div>
@@ -800,7 +806,7 @@ export default function CTGame() {
               <div style={dPanel}>
                 <div style={dPanelHeader}>How to Play</div>
                 <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
-                  A CT town name appears above. Click where you think it is. Correct town = 100 pts · Bordering town = 80 pts · Anything else = 0 pts.
+                  A CT town name appears above. Click where you think it is. Correct town = 100 pts · Bordering town = 80 pts · 2nd-degree neighbor = 70 pts · Anything else = 0 pts.
                   <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
                     {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
                   </div>
