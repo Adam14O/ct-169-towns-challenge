@@ -101,19 +101,56 @@ function areTownsThirdOrFourthNeighbors(townA, townB, towns) {
   }
   return false;
 }
-function calcScore(difficulty, clickedTown, currentTown, towns) {
-  if (!clickedTown) return 0;
-  if (clickedTown.key === currentTown.key) return 100;
+// Precompute neighbor Sets for all towns — called once after towns load
+function buildNeighborMaps(towns) {
+  // deg1: direct border-sharing neighbors
+  const deg1 = new Map(towns.map(t => [t.key, new Set()]));
+  for (let i = 0; i < towns.length; i++)
+    for (let j = i + 1; j < towns.length; j++)
+      if (areTownsNeighbors(towns[i], towns[j])) {
+        deg1.get(towns[i].key).add(towns[j].key);
+        deg1.get(towns[j].key).add(towns[i].key);
+      }
+  // deg2: towns reachable in exactly 2 hops (not already deg1 or self)
+  const deg2 = new Map(towns.map(t => [t.key, new Set()]));
+  for (const t of towns)
+    for (const mid of deg1.get(t.key))
+      for (const neighbor of deg1.get(mid))
+        if (neighbor !== t.key && !deg1.get(t.key).has(neighbor))
+          deg2.get(t.key).add(neighbor);
+  // deg34: towns reachable in 3 or 4 hops (not already deg1/deg2 or self)
+  const deg34 = new Map(towns.map(t => [t.key, new Set()]));
+  for (const t of towns) {
+    const seen = new Set([t.key, ...deg1.get(t.key), ...deg2.get(t.key)]);
+    // 3 hops: t->a->b->c
+    for (const a of deg1.get(t.key))
+      for (const b of deg1.get(a))
+        for (const c of deg1.get(b))
+          if (!seen.has(c)) { deg34.get(t.key).add(c); seen.add(c); }
+    // 4 hops: t->a->b->c->d
+    for (const a of deg1.get(t.key))
+      for (const b of deg1.get(a))
+        for (const c of deg1.get(b))
+          for (const d of deg1.get(c))
+            if (!seen.has(d)) { deg34.get(t.key).add(d); seen.add(d); }
+  }
+  return { deg1, deg2, deg34 };
+}
+
+function calcScore(difficulty, clickedKey, currentKey, neighborMaps) {
+  if (!clickedKey) return 0;
+  if (clickedKey === currentKey) return 100;
   if (difficulty === "hard") return 0;
+  const { deg1, deg2, deg34 } = neighborMaps;
   if (difficulty === "easy") {
-    if (areTownsNeighbors(currentTown, clickedTown)) return 90;
-    if (areTownsSecondNeighbors(currentTown, clickedTown, towns)) return 80;
-    if (areTownsThirdOrFourthNeighbors(currentTown, clickedTown, towns)) return 70;
+    if (deg1.get(currentKey)?.has(clickedKey))  return 90;
+    if (deg2.get(currentKey)?.has(clickedKey))  return 80;
+    if (deg34.get(currentKey)?.has(clickedKey)) return 70;
     return 0;
   }
   // medium
-  if (areTownsNeighbors(currentTown, clickedTown)) return 80;
-  if (areTownsSecondNeighbors(currentTown, clickedTown, towns)) return 70;
+  if (deg1.get(currentKey)?.has(clickedKey)) return 80;
+  if (deg2.get(currentKey)?.has(clickedKey)) return 70;
   return 0;
 }
 function rating(total) {
@@ -246,7 +283,11 @@ export default function CTGame() {
     }).filter(Boolean);
   }, [mapState.towns]);
 
-  const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
+  // Precompute all neighbor relationships once — makes scoring instant
+  const neighborMaps = useMemo(() => {
+    if (towns.length < 169) return null;
+    return buildNeighborMaps(towns);
+  }, [towns]); = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
   const gameOver    = started && round >= roundsToPlay;
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
@@ -261,7 +302,7 @@ export default function CTGame() {
   const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   const startGame = () => {
-    if (towns.length < 169) return;
+    if (towns.length < 169 || !neighborMaps) return;
     if (remainingPool.current.length < roundsToPlay) {
       const all = towns.map((_, i) => i);
       for (let i = all.length - 1; i > 0; i--) {
@@ -285,7 +326,7 @@ export default function CTGame() {
     const clickedTown  = findClickedTown(x, y, towns);
     const guessedPoint = clickedTown ? clickedTown.centroid : { x, y };
     const d = distance(guessedPoint, currentTown.centroid);
-    const s = calcScore(difficulty, clickedTown, currentTown, towns);
+    const s = calcScore(difficulty, clickedTown?.key || null, currentTown.key, neighborMaps);
     setGuess({ x, y, clickedTownName: clickedTown?.name || null, scorePoint: guessedPoint });
     setRoundScore(s); setRevealed(true);
     setTotalScore((prev) => prev + s);
