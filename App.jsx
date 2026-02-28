@@ -239,6 +239,7 @@ export default function CTGame() {
   const [scoreAnim, setScoreAnim] = useState(false);
   const [elapsed, setElapsed]     = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
+  const [playedDifficulty, setPlayedDifficulty] = useState("medium");
   const remainingPool = useRef([]);
   const roundsToPlay = 10;
 
@@ -303,6 +304,7 @@ export default function CTGame() {
       remainingPool.current = all;
     }
     const picked = remainingPool.current.splice(0, roundsToPlay);
+    setPlayedDifficulty(difficulty);
     setOrder(picked); setElapsed(0); setTimeTaken(0);
     setStarted(true); setRound(0); setGuess(null);
     setRevealed(false); setRoundScore(0); setTotalScore(0); setHistory([]);
@@ -341,8 +343,8 @@ export default function CTGame() {
       {Object.entries(DIFFICULTY).map(([key, info]) => {
         const active = difficulty === key;
         return (
-          <button key={key} onClick={() => { if (!started) setDifficulty(key); }}
-            disabled={started}
+          <button key={key} onClick={() => { if (!started || gameOver) setDifficulty(key); }}
+            disabled={started && !gameOver}
             style={{
               padding: small ? "3px 11px" : "5px 18px",
               borderRadius: 6, border: "none",
@@ -352,7 +354,7 @@ export default function CTGame() {
               transition: "all 0.15s",
               background: active ? info.color : "transparent",
               color: active ? "#fff" : "rgba(255,255,255,0.5)",
-              opacity: started && !active ? 0.45 : 1,
+              opacity: started && !gameOver && !active ? 0.45 : 1,
             }}>{info.label}</button>
         );
       })}
@@ -502,6 +504,7 @@ export default function CTGame() {
           ) : (
             <div style={{ flex: 1, background: "#fff", borderRadius: 8, border: "1px solid #dce8f5", padding: "7px 12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: DIFFICULTY[playedDifficulty].color, marginTop: 1 }}>{DIFFICULTY[playedDifficulty].label} mode</span>
               <span style={{ fontSize: 10, fontWeight: 800, color: "#0f2d5e", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
           )}
@@ -586,8 +589,8 @@ export default function CTGame() {
               {Object.entries(DIFFICULTY).map(([key, info]) => {
                 const active = difficulty === key;
                 return (
-                  <button key={key} onClick={() => { if (!started) setDifficulty(key); }} disabled={started}
-                    style={{ padding: "5px 18px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700, cursor: started ? "default" : "pointer", textTransform: "capitalize", letterSpacing: "0.02em", transition: "all 0.15s", background: active ? info.color : "transparent", color: active ? "#fff" : "#94a3b8", opacity: started && !active ? 0.45 : 1 }}>{info.label}</button>
+                  <button key={key} onClick={() => { if (!started || gameOver) setDifficulty(key); }} disabled={started && !gameOver}
+                    style={{ padding: "5px 18px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700, cursor: started ? "default" : "pointer", textTransform: "capitalize", letterSpacing: "0.02em", transition: "all 0.15s", background: active ? info.color : "transparent", color: active ? "#fff" : "#94a3b8", opacity: started && !gameOver && !active ? 0.45 : 1 }}>{info.label}</button>
                 );
               })}
             </div>
@@ -674,7 +677,8 @@ export default function CTGame() {
                     <div style={{ fontSize: 10, color: "#6b7280" }}>/ {roundsToPlay * 100}</div>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 4 }}>{ratingInfo.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 2 }}>{ratingInfo.label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: DIFFICULTY[playedDifficulty].color, marginBottom: 4 }}>{DIFFICULTY[playedDifficulty].label} Mode</div>
                     <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>⏱ Finished in <span style={{ fontWeight: 700, color: "#1e3a5f" }}>{fmtTime(timeTaken)}</span></div>
                     <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
                       <RotateCcw size={12} style={{ marginRight: 4 }} />Play Again
