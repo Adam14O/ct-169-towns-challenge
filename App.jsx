@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, Play, MapPin, ChevronRight, Trophy, Target, AlertCircle, CheckCircle2 } from "lucide-react";
 
-// ─── Google Fonts injection ───────────────────────────────────────────────────
 const injectFonts = () => {
   if (typeof document === "undefined") return;
   if (document.getElementById("ct-game-fonts")) return;
@@ -12,7 +11,6 @@ const injectFonts = () => {
   document.head.appendChild(link);
 };
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
 const CT_MUNI_GEOJSON_URL =
   "https://services1.arcgis.com/FCaUeJ5SOVtImake/arcgis/rest/services/CT_Municipalities/FeatureServer/0/query?where=1%3D1&outFields=Municipality&returnGeometry=true&f=geojson";
 
@@ -35,6 +33,13 @@ const TOWN_NAMES = [
   "Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington",
   "Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"
 ];
+
+// ─── Scoring tiers per difficulty ─────────────────────────────────────────────
+const DIFFICULTY = {
+  easy:   { label: "Easy",   color: "#059669", howTo: "Correct = 100 pts · Border = 90 · 2nd degree = 80 · 3rd–4th degree = 70 · Other = 0" },
+  medium: { label: "Medium", color: "#2563eb", howTo: "Correct = 100 pts · Border = 80 · 2nd degree = 70 · Other = 0" },
+  hard:   { label: "Hard",   color: "#dc2626", howTo: "Correct = 100 pts · Anything else = 0" },
+};
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
 function normTownName(name = "") {
@@ -67,27 +72,56 @@ function distance(a, b) {
 }
 function areTownsNeighbors(townA, townB) {
   const eps = 0.05;
-  for (const polyA of townA.polygons) {
-    for (const ringA of polyA) {
-      for (const [ax, ay] of ringA) {
-        for (const polyB of townB.polygons) {
-          for (const ringB of polyB) {
-            for (const [bx, by] of ringB) {
+  for (const polyA of townA.polygons)
+    for (const ringA of polyA)
+      for (const [ax, ay] of ringA)
+        for (const polyB of townB.polygons)
+          for (const ringB of polyB)
+            for (const [bx, by] of ringB)
               if (Math.abs(ax - bx) < eps && Math.abs(ay - by) < eps) return true;
-            }
-          }
-        }
+  return false;
+}
+function areTownsSecondNeighbors(townA, townB, towns) {
+  return towns.some(mid => mid.key !== townA.key && mid.key !== townB.key &&
+    areTownsNeighbors(townA, mid) && areTownsNeighbors(mid, townB));
+}
+function areTownsThirdOrFourthNeighbors(townA, townB, towns) {
+  for (const mid1 of towns) {
+    if (mid1.key === townA.key || mid1.key === townB.key) continue;
+    if (!areTownsNeighbors(townA, mid1)) continue;
+    for (const mid2 of towns) {
+      if (mid2.key === townA.key || mid2.key === townB.key || mid2.key === mid1.key) continue;
+      if (areTownsNeighbors(mid1, mid2) && areTownsNeighbors(mid2, townB)) return true; // 3rd
+      if (!areTownsNeighbors(mid1, mid2)) continue;
+      for (const mid3 of towns) {                                                         // 4th
+        if (mid3.key === townA.key || mid3.key === townB.key || mid3.key === mid1.key || mid3.key === mid2.key) continue;
+        if (areTownsNeighbors(mid2, mid3) && areTownsNeighbors(mid3, townB)) return true;
       }
     }
   }
   return false;
 }
+function calcScore(difficulty, clickedTown, currentTown, towns) {
+  if (!clickedTown) return 0;
+  if (clickedTown.key === currentTown.key) return 100;
+  if (difficulty === "hard") return 0;
+  if (difficulty === "easy") {
+    if (areTownsNeighbors(currentTown, clickedTown)) return 90;
+    if (areTownsSecondNeighbors(currentTown, clickedTown, towns)) return 80;
+    if (areTownsThirdOrFourthNeighbors(currentTown, clickedTown, towns)) return 70;
+    return 0;
+  }
+  // medium
+  if (areTownsNeighbors(currentTown, clickedTown)) return 80;
+  if (areTownsSecondNeighbors(currentTown, clickedTown, towns)) return 70;
+  return 0;
+}
 function rating(total) {
   if (total >= 1000) return { label: "Human GPS", color: "#b45309" };
-  if (total >= 900) return { label: "Connecticut Legend", color: "#b45309" };
-  if (total >= 750) return { label: "Town Master", color: "#0f766e" };
-  if (total >= 600) return { label: "Strong Local", color: "#1d4ed8" };
-  if (total >= 450) return { label: "Road Tripper", color: "#7c3aed" };
+  if (total >= 900)  return { label: "Connecticut Legend", color: "#b45309" };
+  if (total >= 750)  return { label: "Town Master", color: "#0f766e" };
+  if (total >= 600)  return { label: "Strong Local", color: "#1d4ed8" };
+  if (total >= 450)  return { label: "Road Tripper", color: "#7c3aed" };
   return { label: "Getting Started", color: "#64748b" };
 }
 function flattenCoords(g) {
@@ -135,35 +169,24 @@ function normalizeFeaturesToSvg(geojson) {
     return { id: idx + 1, name: String(rawName), key: normTownName(rawName), centroid, polygons, paths };
   });
 }
-function areTownsSecondNeighbors(townA, townB, towns) {
-  return towns.some(mid => mid.key !== townA.key && mid.key !== townB.key &&
-    areTownsNeighbors(townA, mid) && areTownsNeighbors(mid, townB));
-}
-
 function findClickedTown(x, y, towns) {
-  for (const t of towns) {
-    for (const poly of t.polygons || []) {
+  for (const t of towns)
+    for (const poly of t.polygons || [])
       if (pointInRings(x, y, poly)) return t;
-    }
-  }
   return null;
 }
-
-// ─── Score color ──────────────────────────────────────────────────────────────
 function scoreColor(s) {
-  if (s >= 80) return "#059669";
-  if (s >= 60) return "#d97706";
-  if (s >= 40) return "#ea580c";
+  if (s >= 90) return "#059669";
+  if (s >= 70) return "#d97706";
+  if (s >= 50) return "#ea580c";
   return "#dc2626";
 }
-
-// ─── Score bar width ──────────────────────────────────────────────────────────
 function ScoreBar({ score }) {
   return (
     <div style={{ height: 3, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
       <div style={{
         height: "100%", width: `${score}%`,
-        background: score >= 80 ? "#059669" : score >= 60 ? "#d97706" : score >= 40 ? "#ea580c" : "#dc2626",
+        background: score >= 90 ? "#059669" : score >= 70 ? "#d97706" : score >= 50 ? "#ea580c" : "#dc2626",
         borderRadius: 2, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)"
       }} />
     </div>
@@ -173,7 +196,6 @@ function ScoreBar({ score }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function CTGame() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
-
   useEffect(() => {
     injectFonts();
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -181,20 +203,20 @@ export default function CTGame() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const [mapState, setMapState] = useState({ loading: true, error: "", towns: [] });
-  const [started, setStarted] = useState(false);
-  const [round, setRound] = useState(0);
-  const [order, setOrder] = useState([]);
-  const [guess, setGuess] = useState(null);
-  const [revealed, setRevealed] = useState(false);
+  const [mapState, setMapState]   = useState({ loading: true, error: "", towns: [] });
+  const [difficulty, setDifficulty] = useState("medium");
+  const [started, setStarted]     = useState(false);
+  const [round, setRound]         = useState(0);
+  const [order, setOrder]         = useState([]);
+  const [guess, setGuess]         = useState(null);
+  const [revealed, setRevealed]   = useState(false);
   const [roundScore, setRoundScore] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory]     = useState([]);
   const [scoreAnim, setScoreAnim] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed]     = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
   const remainingPool = useRef([]);
-
   const roundsToPlay = 10;
 
   useEffect(() => {
@@ -225,7 +247,7 @@ export default function CTGame() {
   }, [mapState.towns]);
 
   const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
-  const gameOver = started && round >= roundsToPlay;
+  const gameOver    = started && round >= roundsToPlay;
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
   useEffect(() => {
@@ -234,9 +256,7 @@ export default function CTGame() {
     return () => clearInterval(id);
   }, [started, gameOver]);
 
-  useEffect(() => {
-    if (gameOver) setTimeTaken(elapsed);
-  }, [gameOver]);
+  useEffect(() => { if (gameOver) setTimeTaken(elapsed); }, [gameOver]);
 
   const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -251,34 +271,25 @@ export default function CTGame() {
       remainingPool.current = all;
     }
     const picked = remainingPool.current.splice(0, roundsToPlay);
-    setOrder(picked);
-    setElapsed(0);
-    setTimeTaken(0);
+    setOrder(picked); setElapsed(0); setTimeTaken(0);
     setStarted(true); setRound(0); setGuess(null);
     setRevealed(false); setRoundScore(0); setTotalScore(0); setHistory([]);
   };
 
   const handleMapClick = (e) => {
     if (!currentTown || revealed || gameOver) return;
-    const svg = e.currentTarget;
+    const svg  = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * VB_W;
-    const y = ((e.clientY - rect.top) / rect.height) * VB_H;
-    const clickedTown = findClickedTown(x, y, towns);
+    const x = ((e.clientX - rect.left) / rect.width)  * VB_W;
+    const y = ((e.clientY - rect.top)  / rect.height) * VB_H;
+    const clickedTown  = findClickedTown(x, y, towns);
     const guessedPoint = clickedTown ? clickedTown.centroid : { x, y };
     const d = distance(guessedPoint, currentTown.centroid);
-    const s = clickedTown && clickedTown.key === currentTown.key ? 100
-            : clickedTown && areTownsNeighbors(currentTown, clickedTown) ? 80
-            : clickedTown && areTownsSecondNeighbors(currentTown, clickedTown, towns) ? 70
-            : 0;
+    const s = calcScore(difficulty, clickedTown, currentTown, towns);
     setGuess({ x, y, clickedTownName: clickedTown?.name || null, scorePoint: guessedPoint });
-    setRoundScore(s);
-    setRevealed(true);
+    setRoundScore(s); setRevealed(true);
     setTotalScore((prev) => prev + s);
-    setHistory((prev) => [
-      ...prev,
-      { town: currentTown.name, guessed: clickedTown?.name || "(outside)", score: s, dist: d }
-    ]);
+    setHistory((prev) => [...prev, { town: currentTown.name, guessed: clickedTown?.name || "(outside)", score: s, dist: d }]);
     setScoreAnim(true);
     setTimeout(() => setScoreAnim(false), 600);
   };
@@ -290,16 +301,37 @@ export default function CTGame() {
   };
 
   const ratingInfo = rating(totalScore);
-  const lastH = history[history.length - 1];
+  const lastH      = history[history.length - 1];
+
+  // ── Difficulty tab strip (reused in mobile + desktop) ──────────────────────
+  const DiffTabs = ({ small }) => (
+    <div style={{ display: "flex", background: "rgba(0,0,0,0.18)", borderRadius: 8, padding: 3, gap: 3 }}>
+      {Object.entries(DIFFICULTY).map(([key, info]) => {
+        const active = difficulty === key;
+        return (
+          <button key={key} onClick={() => { if (!started) setDifficulty(key); }}
+            disabled={started}
+            style={{
+              padding: small ? "3px 11px" : "5px 18px",
+              borderRadius: 6, border: "none",
+              fontSize: small ? 11 : 12, fontWeight: 700,
+              cursor: started ? "default" : "pointer",
+              textTransform: "capitalize", letterSpacing: "0.02em",
+              transition: "all 0.15s",
+              background: active ? info.color : "transparent",
+              color: active ? "#fff" : "rgba(255,255,255,0.5)",
+              opacity: started && !active ? 0.45 : 1,
+            }}>{info.label}</button>
+        );
+      })}
+    </div>
+  );
 
   // ── Shared map SVG ──────────────────────────────────────────────────────────
   const MapSVG = (
-    <svg
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      preserveAspectRatio="xMidYMid meet"
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} preserveAspectRatio="xMidYMid meet"
       style={{ width: "100%", display: "block", cursor: currentTown && !revealed ? "crosshair" : "default" }}
-      onClick={handleMapClick}
-    >
+      onClick={handleMapClick}>
       <defs>
         <filter id="town-shadow">
           <feDropShadow dx="0" dy="0.3" stdDeviation="0.4" floodColor="#1e3a5f" floodOpacity="0.15" />
@@ -312,12 +344,12 @@ export default function CTGame() {
         </g>
       ))}
       {towns.map((t) => {
-        const isCorrect = revealed && currentTown && t.key === currentTown.key;
-        const isClicked = revealed && guess?.clickedTownName && normTownName(guess.clickedTownName) === t.key;
+        const isCorrect       = revealed && currentTown && t.key === currentTown.key;
+        const isClicked       = revealed && guess?.clickedTownName && normTownName(guess.clickedTownName) === t.key;
         const wasCorrectAnswer = gameOver && history.some(h => normTownName(h.town) === t.key);
-        const wasWrongClick = gameOver && history.some(h => h.town !== h.guessed && normTownName(h.guessed) === t.key);
-        const gameOverGreen = wasCorrectAnswer;
-        const gameOverRed = wasWrongClick && !wasCorrectAnswer;
+        const wasWrongClick   = gameOver && history.some(h => h.town !== h.guessed && normTownName(h.guessed) === t.key);
+        const gameOverGreen   = wasCorrectAnswer;
+        const gameOverRed     = wasWrongClick && !wasCorrectAnswer;
         return (
           <g key={t.id} filter={isCorrect || isClicked || gameOverGreen || gameOverRed ? "url(#town-shadow)" : undefined}>
             {t.paths.map((d, i) => (
@@ -325,8 +357,7 @@ export default function CTGame() {
                 fill={isCorrect || gameOverGreen ? "#10b981" : isClicked || gameOverRed ? "#f43f5e" : "#c7ddf9"}
                 stroke={isCorrect || gameOverGreen ? "#065f46" : isClicked || gameOverRed ? "#9f1239" : "#3b6fb5"}
                 strokeWidth={isCorrect || isClicked || gameOverGreen || gameOverRed ? "0.35" : "0.2"}
-                style={{ transition: "fill 0.25s ease" }}
-              />
+                style={{ transition: "fill 0.25s ease" }} />
             ))}
           </g>
         );
@@ -348,29 +379,13 @@ export default function CTGame() {
       {gameOver && history.map((h, i) => {
         const t = towns.find(t => normTownName(t.name) === normTownName(h.town));
         if (!t) return null;
-        const score = h.score;
-        const labelColor = score >= 80 ? "#065f46" : score >= 50 ? "#92400e" : "#9f1239";
-        const bgColor = score >= 80 ? "#d1fae5" : score >= 50 ? "#fef3c7" : "#ffe4e6";
+        const labelColor = h.score >= 80 ? "#065f46" : h.score >= 50 ? "#92400e" : "#9f1239";
+        const bgColor    = h.score >= 80 ? "#d1fae5" : h.score >= 50 ? "#fef3c7" : "#ffe4e6";
         return (
           <g key={i}>
             <circle cx={t.centroid.x} cy={t.centroid.y} r={0.9} fill={labelColor} opacity={0.9} />
-            <rect
-              x={t.centroid.x + 1.2}
-              y={t.centroid.y - 1.8}
-              width={t.name.length * 0.82 + 1.0}
-              height={2.2}
-              rx={0.4}
-              fill={bgColor}
-              opacity={0.92}
-            />
-            <text
-              x={t.centroid.x + 1.8}
-              y={t.centroid.y - 0.5}
-              fontSize="1.4"
-              fontWeight="700"
-              fill={labelColor}
-              fontFamily="DM Sans, system-ui, sans-serif"
-            >{t.name}</text>
+            <rect x={t.centroid.x + 1.2} y={t.centroid.y - 1.8} width={t.name.length * 0.82 + 1.0} height={2.2} rx={0.4} fill={bgColor} opacity={0.92} />
+            <text x={t.centroid.x + 1.8} y={t.centroid.y - 0.5} fontSize="1.4" fontWeight="700" fill={labelColor} fontFamily="DM Sans, system-ui, sans-serif">{t.name}</text>
           </g>
         );
       })}
@@ -381,67 +396,41 @@ export default function CTGame() {
   // ── MOBILE LAYOUT ───────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        background: "#f0f4fa",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        padding: "0",
-        boxSizing: "border-box",
-      }}>
+      <div style={{ minHeight: "100vh", background: "#f0f4fa", fontFamily: "'DM Sans', system-ui, sans-serif", padding: "0", boxSizing: "border-box" }}>
         <style>{`
           @keyframes fadeSlideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
           @keyframes popIn { 0% { transform:scale(0.7); opacity:0; } 70% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
-          @keyframes pulse-ring { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
           .score-pop { animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
         `}</style>
 
         {/* Mobile Header */}
-        <div style={{
-          padding: "8px 14px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          borderBottom: "1px solid #d1daea",
-          background: "#0f2d5e"
-        }}>
+        <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #1a3f6f", background: "#0f2d5e" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: "'Playfair Display', Georgia, serif", letterSpacing: 0.3 }}>
-              CT 169 Towns
-            </div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              by Adam Osmond
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: "'Playfair Display', Georgia, serif", letterSpacing: 0.3 }}>CT 169 Towns</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.08em", textTransform: "uppercase" }}>by Adam Osmond</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {started && !gameOver && (
-              <div style={{
-                background: "rgba(255,255,255,0.15)", borderRadius: 20,
-                padding: "3px 10px", fontSize: 12, color: "#fff", fontWeight: 600
-              }}>
+              <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "3px 10px", fontSize: 12, color: "#fff", fontWeight: 600 }}>
                 {Math.min(round + (revealed ? 1 : 0), roundsToPlay)}/{roundsToPlay}
               </div>
             )}
             {started
               ? <button onClick={startGame} style={mBtnOutline}><RotateCcw size={12} /> Restart</button>
-              : <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={mBtnPrimary}>
-                  <Play size={12} /> Start
-                </button>
+              : <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={mBtnPrimary}><Play size={12} /> Start</button>
             }
           </div>
         </div>
 
+        {/* Difficulty tabs — mobile */}
+        <div style={{ background: "#0f2d5e", padding: "6px 14px 8px", display: "flex", justifyContent: "center" }}>
+          <DiffTabs small />
+        </div>
+
         {/* Prompt pill */}
         {started && !gameOver && (
-          <div style={{
-            margin: "6px 12px 0",
-            background: revealed ? "#ecfdf5" : "#eff6ff",
-            border: `1px solid ${revealed ? "#6ee7b7" : "#93c5fd"}`,
-            borderRadius: 8, padding: "6px 12px",
-            display: "flex", alignItems: "center", gap: 8,
-            animation: "fadeSlideUp 0.3s ease both"
-          }}>
-            {revealed
-              ? <CheckCircle2 size={14} color="#059669" />
-              : <MapPin size={14} color="#2563eb" />
-            }
+          <div style={{ margin: "6px 12px 0", background: revealed ? "#ecfdf5" : "#eff6ff", border: `1px solid ${revealed ? "#6ee7b7" : "#93c5fd"}`, borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8, animation: "fadeSlideUp 0.3s ease both" }}>
+            {revealed ? <CheckCircle2 size={14} color="#059669" /> : <MapPin size={14} color="#2563eb" />}
             <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>
               {revealed
                 ? <><span style={{ color: "#047857", fontWeight: 700 }}>{roundScore} pts</span> · Clicked: <span style={{ color: "#475569" }}>{lastH?.guessed}</span></>
@@ -459,54 +448,27 @@ export default function CTGame() {
         )}
 
         {/* MAP */}
-        <div style={{
-          margin: "6px 12px 0",
-          borderRadius: 10,
-          overflow: "hidden",
-          border: "1px solid #c8d9ee",
-          background: "linear-gradient(135deg, #e8f0fb 0%, #dce8f7 100%)",
-          boxShadow: "0 2px 8px rgba(15,45,94,0.08)",
-          lineHeight: 0
-        }}>
-          {mapState.loading ? (
-            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>
-              Loading map…
-            </div>
-          ) : mapState.error ? (
-            <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>
-              {mapState.error}
-            </div>
-          ) : MapSVG}
+        <div style={{ margin: "6px 12px 0", borderRadius: 10, overflow: "hidden", border: "1px solid #c8d9ee", background: "linear-gradient(135deg, #e8f0fb 0%, #dce8f7 100%)", boxShadow: "0 2px 8px rgba(15,45,94,0.08)", lineHeight: 0 }}>
+          {mapState.loading ? <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: 13 }}>Loading map…</div>
+            : mapState.error ? <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 12, padding: 16, textAlign: "center" }}>{mapState.error}</div>
+            : MapSVG}
         </div>
 
         {/* Score strip */}
         <div style={{ margin: "6px 12px 0", display: "flex", gap: 6 }}>
-          <div style={{
-            flex: 1, background: "#fff", borderRadius: 8,
-            border: "1px solid #dce8f5", padding: "7px 12px",
-            display: "flex", justifyContent: "space-between", alignItems: "center"
-          }}>
+          <div style={{ flex: 1, background: "#fff", borderRadius: 8, border: "1px solid #dce8f5", padding: "7px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Score</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }}
-              className={scoreAnim ? "score-pop" : ""}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: "#0f2d5e", fontFamily: "'Playfair Display', serif" }} className={scoreAnim ? "score-pop" : ""}>
               {totalScore}<span style={{ fontSize: 11, fontWeight: 800, color: "#0f2d5e" }}>/{roundsToPlay * 100}</span>
             </span>
           </div>
           {!gameOver ? (
-            <div style={{
-              flex: "0 0 80px", background: "#fff", borderRadius: 8,
-              border: "1px solid #dce8f5", padding: "7px 10px",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
-            }}>
+            <div style={{ flex: "0 0 80px", background: "#fff", borderRadius: 8, border: "1px solid #dce8f5", padding: "7px 10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 1 }}>Time</span>
               <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#0f2d5e" }}>{fmtTime(elapsed)}</span>
             </div>
           ) : (
-            <div style={{
-              flex: 1, background: "#fff", borderRadius: 8,
-              border: "1px solid #dce8f5", padding: "7px 12px",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
-            }}>
+            <div style={{ flex: 1, background: "#fff", borderRadius: 8, border: "1px solid #dce8f5", padding: "7px 12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: ratingInfo.color }}>{ratingInfo.label}</span>
               <span style={{ fontSize: 10, fontWeight: 800, color: "#0f2d5e", marginTop: 1 }}>⏱ {fmtTime(timeTaken)}</span>
             </div>
@@ -515,87 +477,41 @@ export default function CTGame() {
 
         {/* Action button */}
         <div style={{ margin: "6px 12px 0" }}>
-          {!started && (
-            <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169}
-              style={{ ...mBtnLarge, width: "100%" }}>
-              <Play size={15} /> Start Game
-            </button>
-          )}
-          {started && !gameOver && revealed && (
-            <button onClick={nextRound} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #1d4ed8, #2563eb)" }}>
-              {round === roundsToPlay - 1 ? "See Results →" : "Next Town →"}
-            </button>
-          )}
-          {started && !gameOver && !revealed && (
-            <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, color: "#64748b" }}>
-              Tap a town on the map
-            </div>
-          )}
-          {gameOver && (
-            <button onClick={startGame} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #065f46, #059669)" }}>
-              <RotateCcw size={14} /> Play Again
-            </button>
-          )}
+          {!started && <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={{ ...mBtnLarge, width: "100%" }}><Play size={15} /> Start Game</button>}
+          {started && !gameOver && revealed && <button onClick={nextRound} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #1d4ed8, #2563eb)" }}>{round === roundsToPlay - 1 ? "See Results →" : "Next Town →"}</button>}
+          {started && !gameOver && !revealed && <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, color: "#64748b" }}>Tap a town on the map</div>}
+          {gameOver && <button onClick={startGame} style={{ ...mBtnLarge, width: "100%", background: "linear-gradient(135deg, #065f46, #059669)" }}><RotateCcw size={14} /> Play Again</button>}
         </div>
 
         {/* How to Play */}
         {!started && (
-          <div style={{
-            margin: "6px 12px 10px",
-            background: "#fff", borderRadius: 10,
-            border: "1px solid #dce8f5", overflow: "hidden"
-          }}>
-            <div style={{
-              padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
-              fontSize: 9, fontWeight: 700, color: "#5a7a9e",
-              textTransform: "uppercase", letterSpacing: "0.1em"
-            }}>How to Play</div>
+          <div style={{ margin: "6px 12px 10px", background: "#fff", borderRadius: 10, border: "1px solid #dce8f5", overflow: "hidden" }}>
+            <div style={{ padding: "5px 12px", borderBottom: "1px solid #e8f0fb", fontSize: 9, fontWeight: 700, color: "#5a7a9e", textTransform: "uppercase", letterSpacing: "0.1em" }}>How to Play</div>
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
-              A Connecticut town name appears at the top. Tap where you think it is on the map. Correct town = 100 pts · Bordering town = 80 pts · 2nd-degree neighbor = 70 pts · Anything else = 0 pts.
-              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
-                {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
-              </div>
+              A Connecticut town name appears at the top. Tap where you think it is on the map.
+              <div style={{ marginTop: 5, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
+              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}</div>
             </div>
           </div>
         )}
 
         {/* Round History */}
         {history.length > 0 && (
-          <div style={{
-            margin: "6px 12px 10px",
-            background: "#fff", borderRadius: 10, border: "1px solid #dce8f5",
-            overflow: "hidden"
-          }}>
-            <div style={{
-              padding: "5px 12px", borderBottom: "1px solid #e8f0fb",
-              fontSize: 9, fontWeight: 700, color: "#5a7a9e",
-              textTransform: "uppercase", letterSpacing: "0.1em", display: "flex"
-            }}>
+          <div style={{ margin: "6px 12px 10px", background: "#fff", borderRadius: 10, border: "1px solid #dce8f5", overflow: "hidden" }}>
+            <div style={{ padding: "5px 12px", borderBottom: "1px solid #e8f0fb", fontSize: 9, fontWeight: 700, color: "#5a7a9e", textTransform: "uppercase", letterSpacing: "0.1em", display: "flex" }}>
               <span style={{ flex: "0 0 38%" }}>Town</span>
               <span style={{ flex: "0 0 40%" }}>Clicked</span>
               <span style={{ flex: "0 0 22%", textAlign: "right" }}>Pts</span>
             </div>
             {history.map((h, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", padding: "3px 12px",
-                borderBottom: i < history.length - 1 ? "1px solid #f1f5f9" : "none",
-                animation: `fadeSlideUp 0.3s ease ${i * 0.04}s both`
-              }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", padding: "3px 12px", borderBottom: i < history.length - 1 ? "1px solid #f1f5f9" : "none", animation: `fadeSlideUp 0.3s ease ${i * 0.04}s both` }}>
                 <span style={{ flex: "0 0 38%", fontSize: 12, color: "#1e293b", fontWeight: 600 }}>{h.town}</span>
-                <span style={{ flex: "0 0 40%", fontSize: 11, color: h.town === h.guessed ? "#059669" : "#64748b" }}>
-                  {h.guessed}
-                </span>
-                <span style={{ flex: "0 0 22%", textAlign: "right", fontSize: 13, fontWeight: 700, color: scoreColor(h.score) }}>
-                  {h.score}
-                </span>
+                <span style={{ flex: "0 0 40%", fontSize: 11, color: h.town === h.guessed ? "#059669" : "#64748b" }}>{h.guessed}</span>
+                <span style={{ flex: "0 0 22%", textAlign: "right", fontSize: 13, fontWeight: 700, color: scoreColor(h.score) }}>{h.score}</span>
               </div>
             ))}
             {gameOver && (
-              <div style={{
-                padding: "5px 12px", borderTop: "1px solid #e2e8f0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                background: "#f8fafc"
-              }}>
+              <div style={{ padding: "5px 12px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
                 <div>
                   <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Final</span>
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#0f2d5e", marginLeft: 8 }}>⏱ {fmtTime(timeTaken)}</span>
@@ -607,20 +523,13 @@ export default function CTGame() {
             )}
           </div>
         )}
-
       </div>
     );
   }
 
   // ── DESKTOP LAYOUT ──────────────────────────────────────────────────────────
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#f0f4fa",
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-      padding: "16px 24px 24px",
-      boxSizing: "border-box",
-    }}>
+    <div style={{ minHeight: "100vh", background: "#f0f4fa", fontFamily: "'DM Sans', system-ui, sans-serif", padding: "16px 24px 24px", boxSizing: "border-box" }}>
       <style>{`
         @keyframes fadeSlideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes popIn { 0% { transform:scale(0.6); opacity:0; } 70% { transform:scale(1.08); } 100% { transform:scale(1); opacity:1; } }
@@ -633,114 +542,64 @@ export default function CTGame() {
 
       <div style={{ maxWidth: 1140, margin: "0 auto" }}>
 
-        <div style={{
-          display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-          marginBottom: 14, borderBottom: "1px solid #d1daea", paddingBottom: 12
-        }}>
+        {/* Desktop Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, borderBottom: "1px solid #d1daea", paddingBottom: 12 }}>
           <div>
-            <h1 style={{
-              margin: 0, fontSize: 28, fontWeight: 900, color: "#0f2d5e",
-              fontFamily: "'Playfair Display', Georgia, serif", letterSpacing: "-0.01em"
-            }}>CT 169 Towns Challenge</h1>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7f9e", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Geography Game · Created by Adam Osmond
-            </p>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#0f2d5e", fontFamily: "'Playfair Display', Georgia, serif", letterSpacing: "-0.01em" }}>CT 169 Towns Challenge</h1>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7f9e", letterSpacing: "0.08em", textTransform: "uppercase" }}>Geography Game · Created by Adam Osmond</p>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {mapState.loading && (
-              <span style={{ fontSize: 12, color: "#b45309", display: "flex", alignItems: "center", gap: 4 }}>
-                <AlertCircle size={13} /> Loading map…
-              </span>
-            )}
-            {mapState.error && (
-              <span style={{ fontSize: 12, color: "#b91c1c", display: "flex", alignItems: "center", gap: 4 }}>
-                <AlertCircle size={13} /> {mapState.error}
-              </span>
-            )}
-            {!mapState.loading && !mapState.error && !started && (
-              <span style={{ fontSize: 12, color: "#047857", display: "flex", alignItems: "center", gap: 4 }}>
-                <CheckCircle2 size={13} /> 169 towns ready
-              </span>
-            )}
+            {/* Difficulty tabs — desktop */}
+            <div style={{ display: "flex", background: "#1a3a6e", borderRadius: 8, padding: 3, gap: 3 }}>
+              {Object.entries(DIFFICULTY).map(([key, info]) => {
+                const active = difficulty === key;
+                return (
+                  <button key={key} onClick={() => { if (!started) setDifficulty(key); }} disabled={started}
+                    style={{ padding: "5px 18px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700, cursor: started ? "default" : "pointer", textTransform: "capitalize", letterSpacing: "0.02em", transition: "all 0.15s", background: active ? info.color : "transparent", color: active ? "#fff" : "#94a3b8", opacity: started && !active ? 0.45 : 1 }}>{info.label}</button>
+                );
+              })}
+            </div>
+            {mapState.loading && <span style={{ fontSize: 12, color: "#b45309", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} /> Loading map…</span>}
+            {mapState.error  && <span style={{ fontSize: 12, color: "#b91c1c", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} /> {mapState.error}</span>}
+            {!mapState.loading && !mapState.error && !started && <span style={{ fontSize: 12, color: "#047857", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={13} /> 169 towns ready</span>}
             {started
               ? <button className="restart-btn" onClick={startGame} style={dBtnOutline}><RotateCcw size={13} style={{ marginRight: 5 }} />Restart</button>
-              : <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={dBtnPrimary}>
-                  <Play size={13} style={{ marginRight: 5 }} />Start Game
-                </button>
+              : <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={dBtnPrimary}><Play size={13} style={{ marginRight: 5 }} />Start Game</button>
             }
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
-
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
 
-            <div style={{
-              borderRadius: "10px 10px 0 0",
-              background: started && !gameOver ? (revealed ? "#ecfdf5" : "#eff6ff") : "#fff",
-              border: `1px solid ${started && !gameOver ? (revealed ? "#6ee7b7" : "#93c5fd") : "#d1daea"}`,
-              borderBottom: "none",
-              padding: "10px 16px",
-              minHeight: 44,
-              display: "flex", alignItems: "center", gap: 10,
-              boxSizing: "border-box"
-            }}>
-              {!started && (
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>Press Start Game to begin</span>
-              )}
+            {/* Prompt bar */}
+            <div style={{ borderRadius: "10px 10px 0 0", background: started && !gameOver ? (revealed ? "#ecfdf5" : "#eff6ff") : "#fff", border: `1px solid ${started && !gameOver ? (revealed ? "#6ee7b7" : "#93c5fd") : "#d1daea"}`, borderBottom: "none", padding: "10px 16px", minHeight: 44, display: "flex", alignItems: "center", gap: 10, boxSizing: "border-box" }}>
+              {!started && <span style={{ fontSize: 13, color: "#94a3b8" }}>Select a difficulty above, then press Start Game</span>}
               {started && !gameOver && !revealed && (
-                <>
-                  <MapPin size={15} color="#2563eb" />
-                  <span style={{ fontSize: 14, color: "#1e3a5f", fontWeight: 500 }}>
-                    Round {round + 1} of {roundsToPlay} — Find <span style={{ color: "#2563eb", fontWeight: 800, textDecoration: "underline", fontSize: 18 }}>{currentTown?.name}</span>
-                  </span>
-                </>
+                <><MapPin size={15} color="#2563eb" />
+                  <span style={{ fontSize: 14, color: "#1e3a5f", fontWeight: 500 }}>Round {round + 1} of {roundsToPlay} — Find <span style={{ color: "#2563eb", fontWeight: 800, textDecoration: "underline", fontSize: 18 }}>{currentTown?.name}</span></span></>
               )}
               {started && !gameOver && revealed && (
-                <>
-                  <CheckCircle2 size={15} color="#059669" />
+                <><CheckCircle2 size={15} color="#059669" />
                   <span style={{ fontSize: 14, color: "#047857", fontWeight: 700 }}>{roundScore} points</span>
-                  <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>
-                    · {lastH?.dist?.toFixed(1)} units away · Clicked: <span style={{ color: "#1e3a5f" }}>{lastH?.guessed}</span>
-                  </span>
-                </>
+                  <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>· Clicked: <span style={{ color: "#1e3a5f" }}>{lastH?.guessed}</span></span></>
               )}
-              {gameOver && (
-                <span style={{ fontSize: 14, color: "#475569" }}>Game complete — your results are on the right →</span>
-              )}
+              {gameOver && <span style={{ fontSize: 14, color: "#475569" }}>Game complete — your results are on the right →</span>}
             </div>
 
             <div style={{ height: 3, background: "#dce8f5" }}>
               <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", transition: "width 0.4s ease" }} />
             </div>
 
-            <div style={{
-              background: "linear-gradient(135deg, #e8f0fb 0%, #dae6f5 100%)",
-              border: "1px solid #c8d9ee",
-              borderTop: "none", borderBottom: "none", lineHeight: 0,
-            }}>
-              {mapState.loading ? (
-                <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>Loading map…</div>
-              ) : mapState.error ? (
-                <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 13, padding: 20, textAlign: "center" }}>{mapState.error}</div>
-              ) : MapSVG}
+            <div style={{ background: "linear-gradient(135deg, #e8f0fb 0%, #dae6f5 100%)", border: "1px solid #c8d9ee", borderTop: "none", borderBottom: "none", lineHeight: 0 }}>
+              {mapState.loading ? <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>Loading map…</div>
+                : mapState.error ? <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 13, padding: 20, textAlign: "center" }}>{mapState.error}</div>
+                : MapSVG}
             </div>
 
-            <div style={{
-              borderRadius: "0 0 10px 10px",
-              border: "1px solid #c8d9ee",
-              borderTop: "none",
-              background: "#ffffff",
-              padding: "12px 16px",
-              minHeight: 56,
-              display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
+            <div style={{ borderRadius: "0 0 10px 10px", border: "1px solid #c8d9ee", borderTop: "none", background: "#ffffff", padding: "12px 16px", minHeight: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {!started && <span style={{ fontSize: 13, color: "#94a3b8" }}>Click Start Game above to begin playing</span>}
-              {started && !gameOver && !revealed && (
-                <span style={{ fontSize: 13, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Target size={13} /> Click a town on the map above
-                </span>
-              )}
+              {started && !gameOver && !revealed && <span style={{ fontSize: 13, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}><Target size={13} /> Click a town on the map above</span>}
               {started && !gameOver && revealed && (
                 <button className="next-btn" onClick={nextRound} style={{ ...dBtnPrimary, fontSize: 15, padding: "11px 36px" }}>
                   {round === roundsToPlay - 1 ? "See Final Results →" : "Next Town →"}
@@ -750,21 +609,16 @@ export default function CTGame() {
             </div>
           </div>
 
+          {/* Sidebar */}
           <div style={{ width: 268, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-
             {!gameOver ? (
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ ...dPanel, flex: 1 }}>
                   <div style={dPanelHeader}>Score</div>
                   <div style={{ padding: "10px 14px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 7 }}>
-                      <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}
-                      </span>
-                      <span style={{
-                        fontSize: 32, fontWeight: 800, color: "#0f2d5e", lineHeight: 1,
-                        fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em"
-                      }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
+                      <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>Round {started ? Math.min(round + (revealed ? 1 : 0), roundsToPlay) : 0}/{roundsToPlay}</span>
+                      <span style={{ fontSize: 32, fontWeight: 800, color: "#0f2d5e", lineHeight: 1, fontFamily: "'Playfair Display', serif", letterSpacing: "-0.02em" }} className={scoreAnim ? "score-pop" : ""}>{totalScore}</span>
                     </div>
                     <div style={{ height: 5, background: "#dce8f5", borderRadius: 3, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${(totalScore / (roundsToPlay * 100)) * 100}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)" }} />
@@ -781,9 +635,7 @@ export default function CTGame() {
               </div>
             ) : (
               <div style={{ ...dPanel, border: "1px solid #c7d2fe", background: "#eef2ff", animation: "fadeSlideUp 0.4s ease both" }}>
-                <div style={{ ...dPanelHeader, background: "#e0e7ff", borderBottom: "1px solid #c7d2fe", color: "#4338ca" }}>
-                  Final Result
-                </div>
+                <div style={{ ...dPanelHeader, background: "#e0e7ff", borderBottom: "1px solid #c7d2fe", color: "#4338ca" }}>Final Result</div>
                 <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ textAlign: "center", minWidth: 64 }}>
                     <div style={{ fontSize: 40, fontWeight: 900, color: "#1e1b4b", lineHeight: 1, fontFamily: "'Playfair Display', serif" }}>{totalScore}</div>
@@ -791,9 +643,7 @@ export default function CTGame() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: ratingInfo.color, marginBottom: 4 }}>{ratingInfo.label}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
-                      ⏱ Finished in <span style={{ fontWeight: 700, color: "#1e3a5f" }}>{fmtTime(timeTaken)}</span>
-                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>⏱ Finished in <span style={{ fontWeight: 700, color: "#1e3a5f" }}>{fmtTime(timeTaken)}</span></div>
                     <button className="next-btn" onClick={startGame} style={{ ...dBtnPrimary, width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
                       <RotateCcw size={12} style={{ marginRight: 4 }} />Play Again
                     </button>
@@ -806,10 +656,9 @@ export default function CTGame() {
               <div style={dPanel}>
                 <div style={dPanelHeader}>How to Play</div>
                 <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
-                  A CT town name appears above. Click where you think it is. Correct town = 100 pts · Bordering town = 80 pts · 2nd-degree neighbor = 70 pts · Anything else = 0 pts.
-                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
-                    {towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}
-                  </div>
+                  A CT town name appears above. Click where you think it is on the map.
+                  <div style={{ marginTop: 6, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}</div>
                 </div>
               </div>
             )}
@@ -820,9 +669,7 @@ export default function CTGame() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      <th style={dTh}>Town</th>
-                      <th style={dTh}>Clicked</th>
-                      <th style={{ ...dTh, textAlign: "right" }}>Pts</th>
+                      <th style={dTh}>Town</th><th style={dTh}>Clicked</th><th style={{ ...dTh, textAlign: "right" }}>Pts</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -831,8 +678,7 @@ export default function CTGame() {
                         <td style={dTdCompact}>{h.town}</td>
                         <td style={{ ...dTdCompact, color: h.town === h.guessed ? "#059669" : "#64748b" }}>{h.guessed}</td>
                         <td style={{ ...dTdCompact, textAlign: "right", fontWeight: 700, color: scoreColor(h.score) }}>
-                          {h.score}
-                          <ScoreBar score={h.score} />
+                          {h.score}<ScoreBar score={h.score} />
                         </td>
                       </tr>
                     ))}
@@ -846,7 +692,6 @@ export default function CTGame() {
                 )}
               </div>
             )}
-
           </div>
         </div>
       </div>
@@ -854,45 +699,13 @@ export default function CTGame() {
   );
 }
 
-// ─── Desktop styles ───────────────────────────────────────────────────────────
-const dBtnPrimary = {
-  display: "inline-flex", alignItems: "center", padding: "9px 18px",
-  borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-  border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff",
-  letterSpacing: "0.01em"
-};
-const dBtnOutline = {
-  display: "inline-flex", alignItems: "center", padding: "9px 16px",
-  borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-  border: "1px solid #c8d9ee", background: "#fff", color: "#1e3a5f"
-};
-const dPanel = {
-  background: "#ffffff", borderRadius: 10,
-  border: "1px solid #dce8f5", overflow: "hidden"
-};
-const dPanelHeader = {
-  background: "#f4f8fd", borderBottom: "1px solid #dce8f5",
-  padding: "8px 16px", fontSize: 10, fontWeight: 700, color: "#5a7a9e",
-  textTransform: "uppercase", letterSpacing: "0.1em"
-};
-const dTh = { padding: "5px 12px", fontSize: 10, fontWeight: 700, color: "#5a7a9e", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" };
-const dTd = { padding: "6px 12px", fontSize: 12, color: "#334155" };
-const dTdCompact = { padding: "4px 12px", fontSize: 12, color: "#334155" };
-
-// ─── Mobile styles ────────────────────────────────────────────────────────────
-const mBtnPrimary = {
-  display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px",
-  borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-  border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff"
-};
-const mBtnOutline = {
-  display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px",
-  borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-  border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", color: "#fff"
-};
-const mBtnLarge = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 20px",
-  borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer",
-  border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff",
-  letterSpacing: "0.01em", boxShadow: "0 3px 12px rgba(37,99,235,0.25)"
-};
+const dBtnPrimary  = { display: "inline-flex", alignItems: "center", padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", letterSpacing: "0.01em" };
+const dBtnOutline  = { display: "inline-flex", alignItems: "center", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid #c8d9ee", background: "#fff", color: "#1e3a5f" };
+const dPanel       = { background: "#ffffff", borderRadius: 10, border: "1px solid #dce8f5", overflow: "hidden" };
+const dPanelHeader = { background: "#f4f8fd", borderBottom: "1px solid #dce8f5", padding: "8px 16px", fontSize: 10, fontWeight: 700, color: "#5a7a9e", textTransform: "uppercase", letterSpacing: "0.1em" };
+const dTh          = { padding: "5px 12px", fontSize: 10, fontWeight: 700, color: "#5a7a9e", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" };
+const dTd          = { padding: "6px 12px", fontSize: 12, color: "#334155" };
+const dTdCompact   = { padding: "4px 12px", fontSize: 12, color: "#334155" };
+const mBtnPrimary  = { display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff" };
+const mBtnOutline  = { display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", color: "#fff" };
+const mBtnLarge    = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 20px", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer", border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", letterSpacing: "0.01em", boxShadow: "0 3px 12px rgba(37,99,235,0.25)" };
