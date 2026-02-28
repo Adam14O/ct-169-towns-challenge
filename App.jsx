@@ -287,7 +287,9 @@ export default function CTGame() {
   const neighborMaps = useMemo(() => {
     if (towns.length < 169) return null;
     return buildNeighborMaps(towns);
-  }, [towns]); = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
+  }, [towns]);
+
+  const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
   const gameOver    = started && round >= roundsToPlay;
   const progressPct = started ? (Math.min(round, roundsToPlay) / roundsToPlay) * 100 : 0;
 
