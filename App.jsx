@@ -536,7 +536,7 @@ export default function CTGame() {
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
               A Connecticut town name appears at the top. Tap where you think it is on the map.
               <div style={{ marginTop: 5, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
-              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
+              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
             </div>
           </div>
         )}
@@ -704,7 +704,7 @@ export default function CTGame() {
                 <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
                   A CT town name appears above. Click where you think it is on the map.
                   <div style={{ marginTop: 6, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
-                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
                 </div>
               </div>
             )}
