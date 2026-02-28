@@ -283,10 +283,13 @@ export default function CTGame() {
     }).filter(Boolean);
   }, [mapState.towns]);
 
-  // Precompute all neighbor relationships once — makes scoring instant
-  const neighborMaps = useMemo(() => {
-    if (towns.length < 169) return null;
-    return buildNeighborMaps(towns);
+  // Precompute neighbor maps async so it doesn\'t freeze the UI thread
+  const [neighborMaps, setNeighborMaps] = useState(null);
+  useEffect(() => {
+    if (towns.length < 169) return;
+    setNeighborMaps(null);
+    const id = setTimeout(() => setNeighborMaps(buildNeighborMaps(towns)), 0);
+    return () => clearTimeout(id);
   }, [towns]);
 
   const currentTown = started && order.length > 0 && round < roundsToPlay ? towns[order[round]] : null;
@@ -533,7 +536,7 @@ export default function CTGame() {
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#475569", lineHeight: 1.6, fontWeight: 600 }}>
               A Connecticut town name appears at the top. Tap where you think it is on the map.
               <div style={{ marginTop: 5, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
-              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}</div>
+              <div style={{ marginTop: 5, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
             </div>
           </div>
         )}
@@ -604,7 +607,7 @@ export default function CTGame() {
             </div>
             {mapState.loading && <span style={{ fontSize: 12, color: "#b45309", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} /> Loading map…</span>}
             {mapState.error  && <span style={{ fontSize: 12, color: "#b91c1c", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} /> {mapState.error}</span>}
-            {!mapState.loading && !mapState.error && !started && <span style={{ fontSize: 12, color: "#047857", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={13} /> 169 towns ready</span>}
+            {!mapState.loading && !mapState.error && !started && (neighborMaps ? <span style={{ fontSize: 12, color: "#047857", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={13} /> 169 towns ready</span> : <span style={{ fontSize: 12, color: "#b45309", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} /> Computing…</span>)}
             {started
               ? <button className="restart-btn" onClick={startGame} style={dBtnOutline}><RotateCcw size={13} style={{ marginRight: 5 }} />Restart</button>
               : <button onClick={startGame} disabled={mapState.loading || !!mapState.error || towns.length < 169} style={dBtnPrimary}><Play size={13} style={{ marginRight: 5 }} />Start Game</button>
@@ -701,7 +704,7 @@ export default function CTGame() {
                 <div style={{ padding: "10px 14px", fontSize: 12, color: "#475569", lineHeight: 1.65, fontWeight: 600 }}>
                   A CT town name appears above. Click where you think it is on the map.
                   <div style={{ marginTop: 6, fontSize: 11, color: DIFFICULTY[difficulty].color, fontWeight: 700 }}>{DIFFICULTY[difficulty].howTo}</div>
-                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? "✓ All 169 towns loaded" : "Loading towns…"}</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{towns.length >= 169 ? neighborMaps ? "✓ Ready to play" : towns.length >= 169 ? "⏳ Computing neighbors…" : "Loading towns…"}</div>
                 </div>
               </div>
             )}
