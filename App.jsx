@@ -70,64 +70,50 @@ function distance(a, b) {
   const dx = a.x - b.x, dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
-function areTownsNeighbors(townA, townB) {
-  const eps = 0.05;
-  for (const polyA of townA.polygons)
-    for (const ringA of polyA)
-      for (const [ax, ay] of ringA)
-        for (const polyB of townB.polygons)
-          for (const ringB of polyB)
-            for (const [bx, by] of ringB)
-              if (Math.abs(ax - bx) < eps && Math.abs(ay - by) < eps) return true;
+// Build a point-hash Set for a town so neighbor checks are O(n) not O(n^2)
+function buildPointSet(town, precision = 1) {
+  const s = new Set();
+  for (const poly of town.polygons)
+    for (const ring of poly)
+      for (const [x, y] of ring)
+        s.add(`${(x * precision | 0)},${(y * precision | 0)}`);
+  return s;
+}
+function townsShareBorder(setA, townB, precision = 1) {
+  for (const poly of townB.polygons)
+    for (const ring of poly)
+      for (const [x, y] of ring)
+        if (setA.has(`${(x * precision | 0)},${(y * precision | 0)}`)) return true;
   return false;
 }
-function areTownsSecondNeighbors(townA, townB, towns) {
-  return towns.some(mid => mid.key !== townA.key && mid.key !== townB.key &&
-    areTownsNeighbors(townA, mid) && areTownsNeighbors(mid, townB));
-}
-function areTownsThirdOrFourthNeighbors(townA, townB, towns) {
-  for (const mid1 of towns) {
-    if (mid1.key === townA.key || mid1.key === townB.key) continue;
-    if (!areTownsNeighbors(townA, mid1)) continue;
-    for (const mid2 of towns) {
-      if (mid2.key === townA.key || mid2.key === townB.key || mid2.key === mid1.key) continue;
-      if (areTownsNeighbors(mid1, mid2) && areTownsNeighbors(mid2, townB)) return true; // 3rd
-      if (!areTownsNeighbors(mid1, mid2)) continue;
-      for (const mid3 of towns) {                                                         // 4th
-        if (mid3.key === townA.key || mid3.key === townB.key || mid3.key === mid1.key || mid3.key === mid2.key) continue;
-        if (areTownsNeighbors(mid2, mid3) && areTownsNeighbors(mid3, townB)) return true;
-      }
-    }
-  }
-  return false;
-}
-// Precompute neighbor Sets for all towns — called once after towns load
+// Precompute all neighbor relationships once — O(n) lookup during gameplay
 function buildNeighborMaps(towns) {
+  const precision = 20; // ~0.05 unit tolerance: bucket coords to nearest 1/20
+  // Build point sets for every town
+  const ptSets = new Map(towns.map(t => [t.key, buildPointSet(t, precision)]));
   // deg1: direct border-sharing neighbors
   const deg1 = new Map(towns.map(t => [t.key, new Set()]));
   for (let i = 0; i < towns.length; i++)
     for (let j = i + 1; j < towns.length; j++)
-      if (areTownsNeighbors(towns[i], towns[j])) {
+      if (townsShareBorder(ptSets.get(towns[i].key), towns[j], precision)) {
         deg1.get(towns[i].key).add(towns[j].key);
         deg1.get(towns[j].key).add(towns[i].key);
       }
-  // deg2: towns reachable in exactly 2 hops (not already deg1 or self)
+  // deg2: reachable in 2 hops
   const deg2 = new Map(towns.map(t => [t.key, new Set()]));
   for (const t of towns)
     for (const mid of deg1.get(t.key))
-      for (const neighbor of deg1.get(mid))
-        if (neighbor !== t.key && !deg1.get(t.key).has(neighbor))
-          deg2.get(t.key).add(neighbor);
-  // deg34: towns reachable in 3 or 4 hops (not already deg1/deg2 or self)
+      for (const nb of deg1.get(mid))
+        if (nb !== t.key && !deg1.get(t.key).has(nb))
+          deg2.get(t.key).add(nb);
+  // deg34: reachable in 3 or 4 hops (BFS from deg2 frontier)
   const deg34 = new Map(towns.map(t => [t.key, new Set()]));
   for (const t of towns) {
     const seen = new Set([t.key, ...deg1.get(t.key), ...deg2.get(t.key)]);
-    // 3 hops: t->a->b->c
     for (const a of deg1.get(t.key))
       for (const b of deg1.get(a))
         for (const c of deg1.get(b))
           if (!seen.has(c)) { deg34.get(t.key).add(c); seen.add(c); }
-    // 4 hops: t->a->b->c->d
     for (const a of deg1.get(t.key))
       for (const b of deg1.get(a))
         for (const c of deg1.get(b))
